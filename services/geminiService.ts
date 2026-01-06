@@ -1,21 +1,17 @@
-import { GoogleGenAI, Type } from "@google/genai";
+
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { User, UserRole } from "../types";
 
+// Helper to get Gemini client using process.env.API_KEY directly as required by guidelines.
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("API_KEY not found in environment variables.");
-    return null;
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export const getHealthTip = async (userRole: string): Promise<string> => {
   const ai = getAiClient();
-  if (!ai) return "Stay hydrated and eat healthy to maintain good blood levels.";
 
   try {
-    const model = "gemini-2.5-flash";
+    const model = 'gemini-3-flash-preview';
     const prompt = `Provide a short, inspiring, single-sentence health tip or fact specifically for a blood bank system user who is a ${userRole}. 
     If they are a donor, motivate them. If they are a recipient, give hope. If admin, give a management tip.`;
 
@@ -31,13 +27,12 @@ export const getHealthTip = async (userRole: string): Promise<string> => {
   }
 };
 
-export const chatWithSamrat = async (message: string, context: string): Promise<string> => {
+export const chatWithSamrat = async (message: string, context: string, useThinking: boolean = false): Promise<string> => {
   const ai = getAiClient();
-  if (!ai) return "I am currently offline. Please check your connection.";
 
   try {
-    const model = "gemini-2.5-flash";
-    const systemInstruction = `You are Samrat, a friendly, intelligent, and 24/7 AI assistant for the LifeFlow Blood Bank System. 
+    const model = useThinking ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
+    const systemInstruction = `You are Samrat, a friendly, intelligent, and 24/7 AI assistant for the BloodBank System. 
     Your goal is to help Admins, Donors, and Recipients with their queries about blood donation, health, or navigating the system.
     
     Current User Context: ${context}
@@ -46,25 +41,142 @@ export const chatWithSamrat = async (message: string, context: string): Promise<
     If asked about medical advice, strictly advise consulting a doctor. 
     Use a warm, encouraging tone.`;
 
+    const config: any = {
+      systemInstruction: systemInstruction,
+      tools: [{ googleSearch: {} }]
+    };
+
+    if (useThinking) {
+      // Thinking config is only available for Gemini 3 and 2.5 series.
+      config.thinkingConfig = { thinkingBudget: 32768 };
+    }
+
     const response = await ai.models.generateContent({
       model,
       contents: message,
-      config: {
-        systemInstruction: systemInstruction,
-      }
+      config: config
     });
 
-    return response.text || "I didn't quite catch that. Could you rephrase?";
+    let text = response.text || "I didn't quite catch that. Could you rephrase?";
+    
+    // Extract and append grounding links if available as per guidelines.
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (chunks) {
+      const links = chunks
+        .map((chunk: any) => chunk.web?.uri || chunk.maps?.uri)
+        .filter(Boolean);
+      if (links.length > 0) {
+        const uniqueLinks = Array.from(new Set(links));
+        text += "\n\nSources:\n" + uniqueLinks.map(link => `- ${link}`).join("\n");
+      }
+    }
+
+    return text;
   } catch (error) {
     console.error("Samrat Error:", error);
     return "My systems are having a moment. Please try again later.";
   }
 };
 
+export const analyzeMedicalImage = async (base64Data: string, mimeType: string): Promise<string> => {
+  const ai = getAiClient();
+
+  try {
+    // Multi-part content for image analysis using high-quality reasoning model.
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: mimeType
+            }
+          },
+          {
+            text: "Analyze this medical certificate or document for a blood bank system. Extract the blood type, date of donation, and hospital name if visible. Mention if it looks like a valid donor certificate."
+          }
+        ]
+      }
+    });
+    return response.text || "Could not analyze the image.";
+  } catch (error) {
+    console.error("Image Analysis Error:", error);
+    return "Failed to process image.";
+  }
+};
+
+export const transcribeAudio = async (base64Audio: string): Promise<string> => {
+  const ai = getAiClient();
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Audio,
+              mimeType: 'audio/wav'
+            }
+          },
+          {
+            text: "Transcribe the following audio precisely."
+          }
+        ]
+      }
+    });
+    return response.text || "";
+  } catch (error) {
+    console.error("Transcription Error:", error);
+    return "Failed to transcribe audio.";
+  }
+};
+
+export const findHospitalsNearby = async (city: string, lat?: number, lng?: number): Promise<string> => {
+  const ai = getAiClient();
+
+  try {
+    // Maps grounding is only supported in Gemini 2.5 series models.
+    const config: any = {
+      tools: [{ googleMaps: {} }, { googleSearch: {} }]
+    };
+
+    if (lat && lng) {
+      config.toolConfig = {
+        retrievalConfig: {
+          latLng: { latitude: lat, longitude: lng }
+        }
+      };
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Find the best blood banks or hospitals for blood donation in or near ${city}. Provide names, addresses, and any available links.`,
+      config: config
+    });
+
+    let text = response.text || "No results found.";
+    
+    // Extract grounding URLs and list them as links per guidelines.
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (chunks) {
+       const links = chunks.map((c: any) => c.maps?.uri || c.web?.uri).filter(Boolean);
+       if (links.length > 0) {
+         text += "\n\nVerified Sources:\n" + Array.from(new Set(links)).map(l => `- ${l}`).join("\n");
+       }
+    }
+
+    return text;
+  } catch (error) {
+    console.error("Maps Grounding Error:", error);
+    return "Search failed.";
+  }
+};
+
 export const findDonorsWithAI = async (bloodType: string, city: string): Promise<User[]> => {
   const ai = getAiClient();
   
-  // Fallback generator if AI is offline or fails
   const generateFallback = () => {
      const bType = bloodType === 'All' ? ['O+', 'A+', 'B-', 'AB+'][Math.floor(Math.random() * 4)] : bloodType;
      const loc = city ? city : 'Downtown Area';
@@ -82,10 +194,8 @@ export const findDonorsWithAI = async (bloodType: string, city: string): Promise
       }));
   };
 
-  if (!ai) return generateFallback();
-
   try {
-    const model = "gemini-2.5-flash";
+    const model = 'gemini-3-flash-preview';
     const prompt = `Generate 3 fictional blood donor profiles.
     Context: User is searching for donors with Blood Type: "${bloodType}" in City: "${city}".
     If Blood Type is "All", mix them up. If City is empty, use "Metropolis".
@@ -118,7 +228,6 @@ export const findDonorsWithAI = async (bloodType: string, city: string): Promise
 
     const data = JSON.parse(text);
     
-    // Map JSON response to User interface
     return data.map((d: any, i: number) => ({
       id: `ai-gen-${Date.now()}-${i}`,
       username: `donor_${d.name.replace(/\s+/g, '').toLowerCase()}`,
@@ -127,7 +236,7 @@ export const findDonorsWithAI = async (bloodType: string, city: string): Promise
       bloodType: d.bloodType,
       location: d.location,
       phone: d.phone,
-      isVerified: Math.random() > 0.2, // Randomly verify most
+      isVerified: Math.random() > 0.2,
       joinDate: new Date().toISOString().split('T')[0]
     }));
 

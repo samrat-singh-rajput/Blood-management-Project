@@ -36,12 +36,17 @@ export interface BloodStock {
 
 export interface DonationRequest {
   id: string;
-  donorName: string;
+  donorName: string; // Used for Patient/Requester Name or Donor Name
   bloodType: string;
   status: 'Pending' | 'Approved' | 'Completed' | 'Rejected';
   date: string;
   urgency: 'Low' | 'Medium' | 'Critical';
   hospital?: string;
+  location?: string; // New: City/Region
+  phone?: string; // New: Contact Phone
+  type?: 'Donation' | 'Request'; // To distinguish
+  isMedicallyFit?: boolean; // New: for donor screening
+  units?: number; // New: volume of donation
 }
 
 export interface BloodRequest {
@@ -71,6 +76,7 @@ export interface Feedback {
   userRole: string;
   message: string;
   date: string;
+  reply?: string; // Added for admin responses
 }
 
 export interface Hospital {
