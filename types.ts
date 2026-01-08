@@ -11,24 +11,34 @@ export interface User {
   username: string;
   role: UserRole;
   name: string;
-  bloodType?: string; // For donors and users
+  bloodType?: string;
   location?: string;
-  isVerified?: boolean; // Verified by special key (for donors)
+  isVerified?: boolean;
   avatarUrl?: string;
   joinDate?: string;
-  phone?: string; // Added for contact details
-  email?: string; // Added
-  address?: string; // Added
-  level?: number; // Gamification
-  xp?: number; // Gamification
-  status?: 'Active' | 'Blocked'; // New: for admin control
+  phone?: string;
+  email?: string;
+  address?: string;
+  level?: number;
+  xp?: number;
+  status?: 'Active' | 'Blocked';
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string;
+  receiverName: string;
+  text: string;
+  timestamp: string;
 }
 
 export interface BloodStock {
   id: string;
   bloodType: string;
   units: number;
-  maxCapacity: number; // Added for visual progress bars
+  maxCapacity: number;
   hospitalName: string;
   city: string;
   contactNumber: string;
@@ -36,17 +46,17 @@ export interface BloodStock {
 
 export interface DonationRequest {
   id: string;
-  donorName: string; // Used for Patient/Requester Name or Donor Name
+  donorName: string;
   bloodType: string;
   status: 'Pending' | 'Approved' | 'Completed' | 'Rejected';
   date: string;
   urgency: 'Low' | 'Medium' | 'Critical';
   hospital?: string;
-  location?: string; // New: City/Region
-  phone?: string; // New: Contact Phone
-  type?: 'Donation' | 'Request'; // To distinguish
-  isMedicallyFit?: boolean; // New: for donor screening
-  units?: number; // New: volume of donation
+  location?: string;
+  phone?: string;
+  type?: 'Donation' | 'Request';
+  isMedicallyFit?: boolean;
+  units?: number;
 }
 
 export interface BloodRequest {
@@ -67,7 +77,7 @@ export interface DonorCertificate {
   donorId: string;
   date: string;
   hospitalName: string;
-  imageUrl: string; // In real app, this would be a URL. Mocking with string.
+  imageUrl: string;
 }
 
 export interface Feedback {
@@ -76,7 +86,7 @@ export interface Feedback {
   userRole: string;
   message: string;
   date: string;
-  reply?: string; // Added for admin responses
+  reply?: string;
 }
 
 export interface Hospital {
@@ -86,7 +96,7 @@ export interface Hospital {
   address: string;
   phone: string;
   email: string;
-  coordinates?: { lat: number; lng: number };
+  status?: 'Active' | 'Inactive';
 }
 
 export interface EmergencyKey {
@@ -106,7 +116,6 @@ export interface SecurityLog {
   user?: string;
 }
 
-// New Types for "Big" Features
 export interface Campaign {
   id: string;
   title: string;
@@ -121,7 +130,7 @@ export interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: string; // Emoji or Lucide icon name
+  icon: string;
   earnedDate?: string;
   locked: boolean;
 }

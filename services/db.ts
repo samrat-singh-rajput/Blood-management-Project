@@ -1,18 +1,25 @@
 
-import { User, UserRole, BloodStock, DonationRequest, Feedback, SecurityLog } from "../types";
+import { User, UserRole, BloodStock, DonationRequest, Feedback, SecurityLog, Hospital, ChatMessage } from "../types";
 
 const DB_KEYS = {
   USERS: 'lifeflow_users',
   STOCKS: 'lifeflow_stocks',
   REQUESTS: 'lifeflow_requests',
   FEEDBACKS: 'lifeflow_feedbacks',
-  LOGS: 'lifeflow_logs'
+  LOGS: 'lifeflow_logs',
+  HOSPITALS: 'lifeflow_hospitals',
+  CHATS: 'lifeflow_chats'
 };
 
 const INITIAL_STOCKS: BloodStock[] = [
   { id: 'bs1', bloodType: 'A+', units: 42, maxCapacity: 50, hospitalName: 'City General Hospital', city: 'New York', contactNumber: '555-0101' },
   { id: 'bs2', bloodType: 'O-', units: 12, maxCapacity: 30, hospitalName: 'St. Mary Medical', city: 'Los Angeles', contactNumber: '555-0102' },
   { id: 'bs3', bloodType: 'B+', units: 25, maxCapacity: 40, hospitalName: 'Hope Memorial', city: 'Chicago', contactNumber: '555-0103' },
+];
+
+const INITIAL_HOSPITALS: Hospital[] = [
+  { id: 'h1', name: 'City General Hospital', city: 'New York', address: '123 Broad St', phone: '555-0101', email: 'contact@cgh.com' },
+  { id: 'h2', name: 'St. Mary Medical Center', city: 'Los Angeles', address: '456 Sunset Blvd', phone: '555-0102', email: 'info@stmary.org' },
 ];
 
 const INITIAL_USERS: User[] = [
@@ -50,11 +57,11 @@ const INITIAL_USERS: User[] = [
     name: 'Anuj User', 
     role: UserRole.USER, 
     bloodType: 'A+', 
-    location: 'Delhi', 
+    location: 'Gujrat', 
     joinDate: '2023-11-01', 
     phone: '9988776655', 
     email: 'anuj_user@gmail.com', 
-    address: 'Sector 4, Rohini, Delhi', 
+    address: 'mehana 4, Rohini, Delhi', 
     status: 'Active',
     password: 'singh'
   } as any,
@@ -62,8 +69,6 @@ const INITIAL_USERS: User[] = [
 
 export const DB = {
   init: () => {
-    // Clear potentially outdated initial data if versioning was needed, 
-    // but here we just check if USERS exists to prevent overwriting user-created data.
     if (!localStorage.getItem(DB_KEYS.USERS)) {
       localStorage.setItem(DB_KEYS.USERS, JSON.stringify(INITIAL_USERS));
     }
@@ -75,6 +80,12 @@ export const DB = {
     }
     if (!localStorage.getItem(DB_KEYS.FEEDBACKS)) {
       localStorage.setItem(DB_KEYS.FEEDBACKS, JSON.stringify([]));
+    }
+    if (!localStorage.getItem(DB_KEYS.HOSPITALS)) {
+      localStorage.setItem(DB_KEYS.HOSPITALS, JSON.stringify(INITIAL_HOSPITALS));
+    }
+    if (!localStorage.getItem(DB_KEYS.CHATS)) {
+      localStorage.setItem(DB_KEYS.CHATS, JSON.stringify([]));
     }
     if (!localStorage.getItem(DB_KEYS.LOGS)) {
       localStorage.setItem(DB_KEYS.LOGS, JSON.stringify([{ id: 's1', severity: 'Low', message: 'System Initialized', timestamp: new Date().toLocaleString() }]));
@@ -92,6 +103,12 @@ export const DB = {
 
   getFeedbacks: (): Feedback[] => JSON.parse(localStorage.getItem(DB_KEYS.FEEDBACKS) || '[]'),
   saveFeedbacks: (feedbacks: Feedback[]) => localStorage.setItem(DB_KEYS.FEEDBACKS, JSON.stringify(feedbacks)),
+
+  getHospitals: (): Hospital[] => JSON.parse(localStorage.getItem(DB_KEYS.HOSPITALS) || '[]'),
+  saveHospitals: (hospitals: Hospital[]) => localStorage.setItem(DB_KEYS.HOSPITALS, JSON.stringify(hospitals)),
+
+  getChats: (): ChatMessage[] => JSON.parse(localStorage.getItem(DB_KEYS.CHATS) || '[]'),
+  saveChats: (chats: ChatMessage[]) => localStorage.setItem(DB_KEYS.CHATS, JSON.stringify(chats)),
 
   getLogs: (): SecurityLog[] => JSON.parse(localStorage.getItem(DB_KEYS.LOGS) || '[]'),
   addLog: (log: SecurityLog) => {

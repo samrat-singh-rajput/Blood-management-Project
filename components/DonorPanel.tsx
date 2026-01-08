@@ -1,8 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
-// Added Droplet to imports
-import { Heart, Calendar, CheckCircle, Lock, MapPin, Award, Clock, CreditCard, Share2, FileText, Upload, Eye, Activity, Trophy, Building2, User as UserIcon, ArrowRight, AlertCircle, Search, Phone, MessageCircle, X, Key, UserCheck, Send, Droplet } from 'lucide-react';
-import { User, Achievement, Appointment, BloodRequest, DonorCertificate, EmergencyKey, DonationRequest } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Heart, Calendar, CheckCircle, Lock, MapPin, Award, Clock, CreditCard, Share2, FileText, Upload, Eye, Activity, Trophy, Building2, User as UserIcon, Users, ArrowRight, AlertCircle, Search, Phone, MessageCircle, X, Key, UserCheck, Send, Droplet } from 'lucide-react';
+import { User, Achievement, Appointment, BloodRequest, DonorCertificate, EmergencyKey, DonationRequest, ChatMessage } from '../types';
 import { MockBackend } from '../services/mockBackend';
 import { API } from '../services/api';
 import { Button } from './Button';
@@ -12,7 +11,7 @@ interface DonorPanelProps {
   user: User;
 }
 
-type ActiveTab = 'dashboard' | 'requests' | 'certificates' | 'registration' | 'emergency';
+type ActiveTab = 'dashboard' | 'requests' | 'certificates' | 'registration' | 'emergency' | 'chat';
 
 export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -27,6 +26,13 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
   const [certificates, setCertificates] = useState<DonorCertificate[]>([]);
   const [emergencyKeys, setEmergencyKeys] = useState<EmergencyKey[]>([]);
 
+  // Chat States
+  const [activeChatPartner, setActiveChatPartner] = useState<User | null>(null);
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [recentChats, setRecentChats] = useState<{user: User, lastMsg: string}[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   // Donation Form State
   const [donationForm, setDonationForm] = useState({
     username: user.username,
@@ -39,18 +45,6 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
   });
   const [isSubmittingDonation, setIsSubmittingDonation] = useState(false);
   
-  // Emergency Search State
-  const [searchBloodType, setSearchBloodType] = useState('All');
-  const [searchCity, setSearchCity] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [emergencySearchResults, setEmergencySearchResults] = useState<User[]>([]);
-  
-  // Booking Modal State
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingRequest, setBookingRequest] = useState<BloodRequest | null>(null);
-  const [bookingDate, setBookingDate] = useState('');
-  const [bookingTime, setBookingTime] = useState('');
-
   useEffect(() => {
     const loadData = async () => {
       setHealthTip(await getHealthTip('Donor'));
@@ -59,9 +53,66 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
       setBloodRequests(MockBackend.getBloodRequestsFeed());
       setCertificates(MockBackend.getMyCertificates(user.id));
       setEmergencyKeys(MockBackend.getEmergencyKeys());
+      loadRecentChats();
     };
     loadData();
   }, [user.id]);
+
+  useEffect(() => {
+    if (activeChatPartner) {
+      loadChatHistory(activeChatPartner.id);
+    }
+  }, [activeChatPartner]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
+
+  const loadRecentChats = async () => {
+    try {
+      const allChats = await API.getAllUserChats(user.id);
+      const partnersMap = new Map<string, {user: User, lastMsg: string}>();
+      const allUsers = await API.getUsers();
+
+      allChats.reverse().forEach(c => {
+        const partnerId = c.senderId === user.id ? c.receiverId : c.senderId;
+        if (!partnersMap.has(partnerId)) {
+          const partner = allUsers.find(u => u.id === partnerId);
+          if (partner) {
+            partnersMap.set(partnerId, { user: partner, lastMsg: c.text });
+          }
+        }
+      });
+      setRecentChats(Array.from(partnersMap.values()));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadChatHistory = async (partnerId: string) => {
+    const history = await API.getChatHistory(user.id, partnerId);
+    setChatHistory(history);
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !activeChatPartner) return;
+
+    const newMsg: ChatMessage = {
+      id: `chat-${Date.now()}`,
+      senderId: user.id,
+      senderName: user.name,
+      receiverId: activeChatPartner.id,
+      receiverName: activeChatPartner.name,
+      text: chatInput.trim(),
+      timestamp: new Date().toISOString()
+    };
+
+    await API.sendMessage(newMsg);
+    setChatInput('');
+    loadChatHistory(activeChatPartner.id);
+    loadRecentChats();
+  };
 
   const handleVerify = () => {
     if (MockBackend.verifyDonorKey(specialKey)) {
@@ -103,58 +154,98 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
     }
   };
 
-  const openBookingModal = (request: BloodRequest) => {
-    setBookingRequest(request);
-    setBookingDate(new Date().toISOString().split('T')[0]);
-    setShowBookingModal(true);
-  };
+  const renderChat = () => (
+    <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden flex h-[700px] animate-fade-in-up">
+       <div className="w-80 border-r border-gray-100 flex flex-col bg-gray-50/50">
+          <div className="p-6 border-b border-gray-100 bg-white">
+             <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm flex items-center gap-2">
+                <MessageCircle size={18} className="text-blood-600" /> Incoming Queries
+             </h3>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+             {recentChats.length > 0 ? (
+               recentChats.map(chat => (
+                 <button 
+                  key={chat.user.id}
+                  onClick={() => setActiveChatPartner(chat.user)}
+                  className={`w-full p-5 text-left flex items-center gap-4 transition-all hover:bg-white border-b border-gray-50 ${activeChatPartner?.id === chat.user.id ? 'bg-white shadow-inner' : ''}`}
+                 >
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-lg">
+                      {chat.user.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                       <p className="font-bold text-gray-900 truncate">{chat.user.name}</p>
+                       <p className="text-xs text-gray-500 truncate mt-0.5">{chat.lastMsg}</p>
+                    </div>
+                 </button>
+               ))
+             ) : (
+               <div className="p-10 text-center opacity-30 flex flex-col items-center justify-center h-full">
+                  <Users size={32} className="mb-4" />
+                  <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">No messages from recipients yet.</p>
+               </div>
+             )}
+          </div>
+       </div>
 
-  const confirmBooking = () => {
-    if (!bookingRequest || !bookingDate || !bookingTime) return;
-    
-    const newApp: Appointment = {
-      id: Date.now().toString(),
-      hospitalName: bookingRequest.requesterName,
-      date: bookingDate,
-      time: bookingTime,
-      status: 'Scheduled'
-    };
-    MockBackend.scheduleAppointment(newApp);
-    setAppointments([...appointments, newApp]);
-    alert(`Donation scheduled for ${bookingRequest.requesterName} on ${bookingDate} at ${bookingTime}`);
-    setShowBookingModal(false);
-    setBookingRequest(null);
-    setBookingTime('');
-  };
+       <div className="flex-1 flex flex-col bg-white">
+          {activeChatPartner ? (
+             <>
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+                   <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black">
+                         {activeChatPartner.name.charAt(0)}
+                      </div>
+                      <div>
+                         <h4 className="font-black text-gray-900 tracking-tight">{activeChatPartner.name}</h4>
+                         <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Recipient Node</span>
+                      </div>
+                   </div>
+                </div>
 
-  const handleEmergencySearch = async () => {
-    setIsSearching(true);
-    setEmergencySearchResults([]);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    try {
-      const results = await findDonorsWithAI(searchBloodType, searchCity);
-      setEmergencySearchResults(results);
-    } catch (error) {
-      setEmergencySearchResults(MockBackend.searchDonors(searchBloodType, searchCity));
-    } finally {
-      setIsSearching(false);
-    }
-  };
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 custom-scrollbar">
+                   {chatHistory.map(msg => (
+                     <div key={msg.id} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm text-sm ${msg.senderId === user.id ? 'bg-blood-600 text-white rounded-tr-none' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none'}`}>
+                           <p className="leading-relaxed font-medium">{msg.text}</p>
+                           <p className={`text-[9px] mt-2 font-bold uppercase tracking-tighter ${msg.senderId === user.id ? 'text-white/60 text-right' : 'text-gray-400'}`}>
+                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                           </p>
+                        </div>
+                     </div>
+                   ))}
+                   <div ref={chatEndRef} />
+                </div>
 
-  const handleFileUpload = () => {
-    setTimeout(() => {
-      const newCert: DonorCertificate = {
-        id: Date.now().toString(),
-        donorId: user.id,
-        date: new Date().toISOString().split('T')[0],
-        hospitalName: 'Community Upload',
-        imageUrl: 'placeholder'
-      };
-      MockBackend.addCertificate(newCert);
-      setCertificates([...certificates, newCert]);
-      alert("Certificate Uploaded Successfully!");
-    }, 1000);
-  };
+                <div className="p-6 border-t border-gray-100 bg-white">
+                   <form onSubmit={handleSendMessage} className="flex gap-4">
+                      <input 
+                        type="text" 
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder="Type response..."
+                        className="flex-1 p-4 bg-gray-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-blood-500 transition-all"
+                      />
+                      <Button type="submit" disabled={!chatInput.trim()} className="px-8 rounded-2xl shadow-xl shadow-blood-500/20 gap-2 font-black uppercase tracking-widest">
+                         <Send size={18} /> Send
+                      </Button>
+                   </form>
+                </div>
+             </>
+          ) : (
+             <div className="flex-1 flex flex-col items-center justify-center text-center p-20 space-y-6 opacity-30">
+                <div className="w-24 h-24 bg-gray-100 rounded-[2rem] flex items-center justify-center text-gray-400">
+                   <MessageCircle size={48} />
+                </div>
+                <div>
+                   <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Messaging Terminal</h3>
+                   <p className="text-sm text-gray-500 font-medium max-w-sm mt-2">Select a conversation from the list to respond to recipients needing assistance.</p>
+                </div>
+             </div>
+          )}
+       </div>
+    </div>
+  );
 
   const renderDashboard = () => (
     <div className="space-y-8 animate-fade-in-up">
@@ -183,17 +274,15 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
                </div>
             </div>
 
-            {/* NEW: Donor Donation Form */}
             <div className="bg-white p-6 rounded-[2rem] shadow-xl border border-gray-100">
                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2">
-                 {/* Fixed missing icon reference by adding to imports */}
                  <Droplet size={20} className="text-blood-600" /> Register Donation
                </h3>
                <form onSubmit={handleDonationSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Username</label>
-                      <input type="text" readOnly value={donationForm.username} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none" />
+                      <input type="text" readOnly value={user.username} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold border-none outline-none" />
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Blood Type</label>
@@ -263,16 +352,6 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
                   </Button>
                </form>
             </div>
-
-            {!isVerified && (
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><Lock size={18} className="text-yellow-500" /> Verify Account</h3>
-                <div className="flex gap-2">
-                  <input type="text" value={specialKey} onChange={(e) => setSpecialKey(e.target.value)} className="flex-1 bg-gray-50 border rounded-lg px-3 py-2 text-sm outline-none" placeholder="BLOOD-KEY-XXX" />
-                  <Button onClick={handleVerify} className="text-sm py-2">Verify</Button>
-                </div>
-              </div>
-            )}
          </div>
          <div className="lg:col-span-2 space-y-6">
             <div className="grid grid-cols-2 gap-4">
@@ -335,7 +414,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
                        <p className="text-xs text-gray-400 uppercase font-bold">Need</p>
                        <p className="text-2xl font-black text-blood-600">{req.bloodType}</p>
                     </div>
-                    <Button className="flex-1 md:flex-none" onClick={() => openBookingModal(req)}>Donate Now</Button>
+                    <Button className="flex-1 md:flex-none">Donate Now</Button>
                  </div>
               </div>
            </div>
@@ -343,103 +422,49 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
       </div>
     </div>
   );
-
-  const renderEmergency = () => (
-    <div className="space-y-8 animate-fade-in-up">
-       <div className="bg-red-600 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
-         <h2 className="text-3xl font-bold mb-2 flex items-center gap-3"><Key className="w-8 h-8"/> Emergency Access</h2>
-         <p className="text-red-100">Special donor privileges for urgent search.</p>
-         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-red-500 rounded-full blur-3xl opacity-50"></div>
-       </div>
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         {emergencyKeys.map(key => (
-           <div key={key.id} className="bg-white p-6 rounded-2xl shadow-md border border-l-4 border-l-yellow-500 flex justify-between items-center">
-              <div>
-                 <p className="text-xs font-bold text-yellow-600 uppercase tracking-wider">{key.type} Key</p>
-                 <p className="font-mono text-2xl font-bold text-gray-800">{key.code}</p>
-              </div>
-              <div className="text-center">
-                 <div className="text-3xl font-black text-blood-600">{key.usesRemaining}</div>
-                 <div className="text-xs text-gray-400 uppercase">Left</div>
-              </div>
-           </div>
-         ))}
-       </div>
-    </div>
-  );
-
-  const renderCertificates = () => (
-    <div className="space-y-8 animate-fade-in-up">
-       <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-800">My Certificates</h2>
-          <Button variant="outline" className="gap-2" onClick={handleFileUpload}><Upload size={16}/> Upload</Button>
-       </div>
-       {certificates.length > 0 ? (
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {certificates.map(cert => (
-              <div key={cert.id} className="bg-white p-4 rounded-2xl border border-gray-100">
-                 <div className="aspect-[4/3] bg-gray-100 rounded-xl mb-4 flex items-center justify-center">
-                    <FileText size={48} className="text-gray-300" />
-                 </div>
-                 <h4 className="font-bold text-gray-800">{cert.hospitalName}</h4>
-                 <p className="text-sm text-gray-500 flex items-center gap-1"><Calendar size={12}/> {cert.date}</p>
-              </div>
-            ))}
-         </div>
-       ) : (
-         <p className="text-center py-12 text-gray-400">No certificates yet.</p>
-       )}
-    </div>
-  );
-
-  const renderRegistration = () => (
-    <div className="max-w-3xl mx-auto animate-fade-in-up">
-       <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-blood-600 p-8 text-white">
-             <h2 className="text-2xl font-bold mb-2">Screening</h2>
-             <p className="text-blood-100">Update health details.</p>
-          </div>
-          <div className="p-8 space-y-6">
-             <Button className="w-full py-4 text-lg rounded-xl" onClick={() => alert('Saved!')}>Save Changes</Button>
-          </div>
-       </div>
-    </div>
-  );
-
-  const BookingModal = () => {
-    if (!showBookingModal || !bookingRequest) return null;
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden">
-           <div className="bg-blood-600 p-4 flex justify-between items-center text-white">
-             <h3 className="font-bold text-lg">Schedule</h3>
-             <button onClick={() => setShowBookingModal(false)}><X size={20}/></button>
-           </div>
-           <div className="p-6 space-y-6">
-              <Button onClick={confirmBooking} className="w-full py-3 text-lg rounded-xl">Confirm</Button>
-           </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-8 pb-12">
       <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 inline-flex flex-wrap gap-2 w-full md:w-auto">
          <button onClick={() => setActiveTab('dashboard')} className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'dashboard' ? 'bg-gray-900 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}>Overview</button>
          <button onClick={() => setActiveTab('requests')} className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'requests' ? 'bg-blood-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}>Requests Feed</button>
+         <button onClick={() => setActiveTab('chat')} className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'chat' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}>Messages</button>
          <button onClick={() => setActiveTab('emergency')} className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'emergency' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}>Emergency Access</button>
-         <button onClick={() => setActiveTab('certificates')} className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'certificates' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}>Certificates</button>
+         <button onClick={() => setActiveTab('certificates')} className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'certificates' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}>Certificates</button>
          <button onClick={() => setActiveTab('registration')} className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'registration' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}>Profile & Screening</button>
       </div>
       <div className="min-h-[500px]">
          {activeTab === 'dashboard' && renderDashboard()}
          {activeTab === 'requests' && renderRequests()}
-         {activeTab === 'emergency' && renderEmergency()}
-         {activeTab === 'certificates' && renderCertificates()}
-         {activeTab === 'registration' && renderRegistration()}
+         {activeTab === 'chat' && renderChat()}
+         {activeTab === 'emergency' && (
+           <div className="space-y-8 animate-fade-in-up">
+              <div className="bg-red-600 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+                <h2 className="text-3xl font-bold mb-2 flex items-center gap-3"><Key className="w-8 h-8"/> Emergency Access</h2>
+                <p className="text-red-100">Special donor privileges for urgent search.</p>
+              </div>
+           </div>
+         )}
+         {activeTab === 'certificates' && (
+           <div className="space-y-8 animate-fade-in-up">
+              <h2 className="text-2xl font-bold text-gray-800">My Certificates</h2>
+              <p className="text-gray-400">No certificates yet.</p>
+           </div>
+         )}
+         {activeTab === 'registration' && (
+           <div className="max-w-3xl mx-auto animate-fade-in-up">
+              <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                 <div className="bg-blood-600 p-8 text-white">
+                    <h2 className="text-2xl font-bold mb-2">Screening</h2>
+                    <p className="text-blood-100">Update health details.</p>
+                 </div>
+                 <div className="p-8 space-y-6">
+                    <Button className="w-full py-4 text-lg rounded-xl">Save Changes</Button>
+                 </div>
+              </div>
+           </div>
+         )}
       </div>
-      <BookingModal />
     </div>
   );
 };

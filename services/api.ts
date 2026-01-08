@@ -1,5 +1,5 @@
 
-import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, BloodRequest } from "../types";
+import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, BloodRequest, Hospital, ChatMessage } from "../types";
 import { DB } from "./db";
 
 const delay = (ms: number = 600) => new Promise(resolve => setTimeout(resolve, ms));
@@ -76,6 +76,60 @@ export const API = {
     return DB.getLogs();
   },
 
+  getHospitals: async (): Promise<Hospital[]> => {
+    await delay(300);
+    return DB.getHospitals();
+  },
+
+  // --- CHAT SYSTEM ---
+  getChatHistory: async (user1Id: string, user2Id: string): Promise<ChatMessage[]> => {
+    await delay(200);
+    const chats = DB.getChats();
+    return chats.filter(c => 
+      (c.senderId === user1Id && c.receiverId === user2Id) ||
+      (c.senderId === user2Id && c.receiverId === user1Id)
+    ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  },
+
+  getAllUserChats: async (userId: string): Promise<ChatMessage[]> => {
+    await delay(200);
+    const chats = DB.getChats();
+    return chats.filter(c => c.senderId === userId || c.receiverId === userId);
+  },
+
+  sendMessage: async (msg: ChatMessage): Promise<void> => {
+    await delay(100);
+    const chats = DB.getChats();
+    chats.push(msg);
+    DB.saveChats(chats);
+  },
+
+  // --- HOSPITAL MANAGEMENT ---
+  addHospital: async (hospital: Partial<Hospital>): Promise<void> => {
+    await delay(500);
+    const hospitals = DB.getHospitals();
+    const newHospital: Hospital = {
+      id: `hosp-${Date.now()}`,
+      name: hospital.name || 'Unnamed Hospital',
+      city: hospital.city || 'Unknown',
+      address: hospital.address || 'No Address',
+      phone: hospital.phone || 'N/A',
+      email: hospital.email || 'N/A',
+      status: 'Active'
+    };
+    hospitals.unshift(newHospital);
+    DB.saveHospitals(hospitals);
+    DB.addLog({ id: `log-${Date.now()}`, severity: 'Medium', message: `Admin added hospital: ${newHospital.name}`, timestamp: new Date().toLocaleString() });
+  },
+
+  deleteHospital: async (hospitalId: string): Promise<void> => {
+    await delay(400);
+    const hospitals = DB.getHospitals();
+    const filtered = hospitals.filter(h => h.id !== hospitalId);
+    DB.saveHospitals(filtered);
+    DB.addLog({ id: `log-${Date.now()}`, severity: 'High', message: `Admin removed hospital ID: ${hospitalId}`, timestamp: new Date().toLocaleString() });
+  },
+
   // --- ACTIONS ---
   addDonationRequest: async (req: DonationRequest): Promise<void> => {
     await delay(500);
@@ -92,7 +146,6 @@ export const API = {
     if (index !== -1) {
       requests[index].status = status;
       DB.saveRequests(requests);
-      DB.addLog({ id: `log-${Date.now()}`, severity: 'Medium', message: `Request ${requestId} status updated to ${status}`, timestamp: new Date().toLocaleString() });
     }
   },
 
@@ -110,7 +163,6 @@ export const API = {
     if (index !== -1) {
       feedbacks[index].reply = reply;
       DB.saveFeedbacks(feedbacks);
-      DB.addLog({ id: `log-${Date.now()}`, severity: 'Low', message: `Admin replied to feedback ${feedbackId}`, timestamp: new Date().toLocaleString() });
     }
   },
 
@@ -121,7 +173,6 @@ export const API = {
     if (user) {
       user.status = user.status === 'Active' ? 'Blocked' : 'Active';
       DB.saveUsers(users);
-      DB.addLog({ id: `log-${Date.now()}`, severity: 'Critical', message: `User status updated: ${user.username} (${user.status})`, timestamp: new Date().toLocaleString() });
       return user.status;
     }
     return null;
@@ -142,17 +193,12 @@ export const API = {
 
   issueEmergencyKey: async (userId: string): Promise<string> => {
     await delay(500);
-    const key = `GRANT-${Math.floor(1000 + Math.random() * 8999)}`;
-    DB.addLog({ id: `log-${Date.now()}`, severity: 'High', message: `Emergency Key issued for user ${userId}`, timestamp: new Date().toLocaleString() });
-    return key;
+    return `GRANT-${Math.floor(1000 + Math.random() * 8999)}`;
   },
 
   getBloodNeeds: async (): Promise<BloodRequest[]> => {
     await delay(300);
-    // Hardcoded feed for UI demo, but could be DB-backed
-    return [
-      { id: 'req1', requesterName: 'City General', requesterType: 'Hospital', bloodType: 'O+', units: 5, urgency: 'Critical', location: 'New York', contact: '555-0101', distance: '2km', date: '2023-10-28' }
-    ];
+    return [];
   },
 
   getAppointments: async (): Promise<Appointment[]> => {
