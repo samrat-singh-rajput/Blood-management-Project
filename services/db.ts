@@ -1,5 +1,5 @@
 
-import { User, UserRole, BloodStock, DonationRequest, Feedback, SecurityLog, Hospital, ChatMessage } from "../types";
+import { User, UserRole, BloodStock, DonationRequest, Feedback, SecurityLog, Hospital, ChatMessage, DonorCertificate, Appointment } from "../types";
 
 const DB_KEYS = {
   USERS: 'lifeflow_users',
@@ -8,7 +8,9 @@ const DB_KEYS = {
   FEEDBACKS: 'lifeflow_feedbacks',
   LOGS: 'lifeflow_logs',
   HOSPITALS: 'lifeflow_hospitals',
-  CHATS: 'lifeflow_chats'
+  CHATS: 'lifeflow_chats',
+  CERTIFICATES: 'lifeflow_certificates',
+  APPOINTMENTS: 'lifeflow_appointments'
 };
 
 const INITIAL_STOCKS: BloodStock[] = [
@@ -87,6 +89,12 @@ export const DB = {
     if (!localStorage.getItem(DB_KEYS.CHATS)) {
       localStorage.setItem(DB_KEYS.CHATS, JSON.stringify([]));
     }
+    if (!localStorage.getItem(DB_KEYS.CERTIFICATES)) {
+      localStorage.setItem(DB_KEYS.CERTIFICATES, JSON.stringify([]));
+    }
+    if (!localStorage.getItem(DB_KEYS.APPOINTMENTS)) {
+      localStorage.setItem(DB_KEYS.APPOINTMENTS, JSON.stringify([]));
+    }
     if (!localStorage.getItem(DB_KEYS.LOGS)) {
       localStorage.setItem(DB_KEYS.LOGS, JSON.stringify([{ id: 's1', severity: 'Low', message: 'System Initialized', timestamp: new Date().toLocaleString() }]));
     }
@@ -109,6 +117,12 @@ export const DB = {
 
   getChats: (): ChatMessage[] => JSON.parse(localStorage.getItem(DB_KEYS.CHATS) || '[]'),
   saveChats: (chats: ChatMessage[]) => localStorage.setItem(DB_KEYS.CHATS, JSON.stringify(chats)),
+
+  getCertificates: (): DonorCertificate[] => JSON.parse(localStorage.getItem(DB_KEYS.CERTIFICATES) || '[]'),
+  saveCertificates: (certs: DonorCertificate[]) => localStorage.setItem(DB_KEYS.CERTIFICATES, JSON.stringify(certs)),
+
+  getAppointments: (): Appointment[] => JSON.parse(localStorage.getItem(DB_KEYS.APPOINTMENTS) || '[]'),
+  saveAppointments: (apps: Appointment[]) => localStorage.setItem(DB_KEYS.APPOINTMENTS, JSON.stringify(apps)),
 
   getLogs: (): SecurityLog[] => JSON.parse(localStorage.getItem(DB_KEYS.LOGS) || '[]'),
   addLog: (log: SecurityLog) => {

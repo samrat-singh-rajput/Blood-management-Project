@@ -1,5 +1,5 @@
 
-import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, BloodRequest, Hospital, ChatMessage } from "../types";
+import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, BloodRequest, Hospital, ChatMessage, DonorCertificate } from "../types";
 import { DB } from "./db";
 
 const delay = (ms: number = 600) => new Promise(resolve => setTimeout(resolve, ms));
@@ -178,6 +178,36 @@ export const API = {
     return null;
   },
 
+  // --- CERTIFICATES ---
+  getCertificates: async (donorId: string): Promise<DonorCertificate[]> => {
+    await delay(400);
+    return DB.getCertificates().filter(c => c.donorId === donorId);
+  },
+
+  addCertificate: async (cert: DonorCertificate): Promise<void> => {
+    await delay(600);
+    const certs = DB.getCertificates();
+    certs.unshift(cert);
+    DB.saveCertificates(certs);
+    DB.addLog({ id: `log-${Date.now()}`, severity: 'Medium', message: `Donor uploaded certificate: ${cert.id}`, timestamp: new Date().toLocaleString() });
+  },
+
+  // --- APPOINTMENTS ---
+  getAppointments: async (userId: string): Promise<Appointment[]> => {
+    await delay(300);
+    const apps = DB.getAppointments();
+    // Return appointments where this user is either the hospital (unlikely here) or the donor
+    return apps.filter(a => (a as any).donorId === userId);
+  },
+
+  scheduleAppointment: async (app: Appointment & { donorId: string }): Promise<void> => {
+    await delay(500);
+    const apps = DB.getAppointments();
+    apps.push(app);
+    DB.saveAppointments(apps);
+    DB.addLog({ id: `log-${Date.now()}`, severity: 'Medium', message: `Appointment scheduled for ${app.donorId} at ${app.hospitalName}`, timestamp: new Date().toLocaleString() });
+  },
+
   promoteDonor: async (userId: string): Promise<number | null> => {
     await delay(500);
     const users = DB.getUsers();
@@ -194,18 +224,5 @@ export const API = {
   issueEmergencyKey: async (userId: string): Promise<string> => {
     await delay(500);
     return `GRANT-${Math.floor(1000 + Math.random() * 8999)}`;
-  },
-
-  getBloodNeeds: async (): Promise<BloodRequest[]> => {
-    await delay(300);
-    return [];
-  },
-
-  getAppointments: async (): Promise<Appointment[]> => {
-    return [];
-  },
-
-  scheduleAppointment: async (app: Appointment): Promise<void> => {
-    await delay(400);
   }
 };

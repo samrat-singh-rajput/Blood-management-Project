@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Users, Activity, MessageSquare, ShieldCheck, TrendingUp, BarChart2, Ban, CheckCircle, Trophy, MapPin, RefreshCcw, Send, X, Phone, Building2, Plus, Mail, Trash2, HeartHandshake, CheckCircle2, Key, Gift } from 'lucide-react';
+import { Users, Activity, MessageSquare, ShieldCheck, TrendingUp, BarChart2, Ban, CheckCircle, Trophy, MapPin, RefreshCcw, Send, X, Phone, Building2, Plus, Mail, Trash2, HeartHandshake, CheckCircle2, Key, Gift, Search } from 'lucide-react';
 import { User, DonationRequest, Feedback, BloodStock, SecurityLog, Hospital, UserRole } from '../types';
 import { API } from '../services/api';
 import { Button } from './Button';
@@ -23,6 +23,7 @@ export const AdminPanel: React.FC = () => {
   const [showAddHospital, setShowAddHospital] = useState(false);
   const [newHospital, setNewHospital] = useState({ name: '', city: '', address: '', phone: '', email: '' });
   const [isAddingHospital, setIsAddingHospital] = useState(false);
+  const [hospitalSearchQuery, setHospitalSearchQuery] = useState('');
 
   // UI States for Feedback
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -529,100 +530,120 @@ export const AdminPanel: React.FC = () => {
     </div>
   );
 
-  const renderHospitals = () => (
-    <div className="space-y-6 animate-fade-in-up">
-       <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-gray-100 flex justify-between items-center">
-          <div>
+  const renderHospitals = () => {
+    const filteredHospitals = hospitals.filter(h => 
+      h.name.toLowerCase().includes(hospitalSearchQuery.toLowerCase()) || 
+      h.city.toLowerCase().includes(hospitalSearchQuery.toLowerCase())
+    );
+
+    return (
+      <div className="space-y-6 animate-fade-in-up">
+        <div className="bg-white p-8 rounded-[2rem] shadow-lg border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="w-full md:w-auto">
             <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3 uppercase tracking-tight">
               <Building2 className="text-blood-600" /> Hospital Network
             </h2>
             <p className="text-gray-500 text-sm font-medium tracking-tight mt-1">Enroll and manage medical facilities across the secure system.</p>
           </div>
-          <Button onClick={() => setShowAddHospital(true)} className="gap-2 font-black uppercase tracking-widest rounded-xl shadow-xl shadow-blood-500/20">
+          <Button onClick={() => setShowAddHospital(true)} className="gap-2 font-black uppercase tracking-widest rounded-xl shadow-xl shadow-blood-500/20 w-full md:w-auto px-8">
             <Plus size={18} /> Register Facility
           </Button>
-       </div>
+        </div>
 
-       {showAddHospital && (
-         <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-blood-100 animate-fade-in-up relative overflow-hidden">
-           <div className="absolute top-0 left-0 w-full h-1.5 bg-blood-600"></div>
-           <div className="flex justify-between items-center mb-8">
-             <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">New Facility Registry</h3>
-             <button onClick={() => setShowAddHospital(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"><X/></button>
-           </div>
-           <form onSubmit={handleAddHospital} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Legal Entity Name</label>
-               <input 
-                required
-                type="text" 
-                value={newHospital.name} 
-                onChange={e => setNewHospital({...newHospital, name: e.target.value})}
-                placeholder="e.g. Biratnagar Specialty Care"
-                className="w-full p-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
-               />
-             </div>
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Region/City</label>
-               <input 
-                required
-                type="text" 
-                value={newHospital.city} 
-                onChange={e => setNewHospital({...newHospital, city: e.target.value})}
-                placeholder="e.g. New York"
-                className="w-full p-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
-               />
-             </div>
-             <div className="space-y-1 md:col-span-2">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Physical Address</label>
-               <div className="relative">
-                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                 <input 
+        {/* Dedicated Search Row Above The List */}
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+          <div className="relative w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blood-600" size={20} />
+            <input 
+              type="text" 
+              placeholder="Quick Filter: Type hospital name or city to search database..." 
+              value={hospitalSearchQuery}
+              onChange={(e) => setHospitalSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blood-500 font-bold outline-none transition-all shadow-inner placeholder:text-gray-400 text-gray-800"
+            />
+          </div>
+        </div>
+
+        {showAddHospital && (
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-2xl border border-blood-100 animate-fade-in-up relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-blood-600"></div>
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">New Facility Registry</h3>
+              <button onClick={() => setShowAddHospital(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400"><X/></button>
+            </div>
+            <form onSubmit={handleAddHospital} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Legal Entity Name</label>
+                <input 
+                  required
                   type="text" 
-                  value={newHospital.address} 
-                  onChange={e => setNewHospital({...newHospital, address: e.target.value})}
-                  placeholder="Block, Street, Landmark"
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
-                 />
-               </div>
-             </div>
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Authorized Contact Phone</label>
-               <div className="relative">
-                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                 <input 
-                  type="tel" 
-                  value={newHospital.phone} 
-                  onChange={e => setNewHospital({...newHospital, phone: e.target.value})}
-                  placeholder="Official hotline"
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
-                 />
-               </div>
-             </div>
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Verified Email Domain</label>
-               <div className="relative">
-                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                 <input 
-                  type="email" 
-                  value={newHospital.email} 
-                  onChange={e => setNewHospital({...newHospital, email: e.target.value})}
-                  placeholder="admin@hospital-domain.com"
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
-                 />
-               </div>
-             </div>
-             <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-50">
-               <Button type="button" variant="outline" onClick={() => setShowAddHospital(false)} className="rounded-xl px-8">Discard</Button>
-               <Button type="submit" isLoading={isAddingHospital} className="px-12 font-black uppercase tracking-widest rounded-xl shadow-xl shadow-blood-500/20">Register to Database</Button>
-             </div>
-           </form>
-         </div>
-       )}
+                  value={newHospital.name} 
+                  onChange={e => setNewHospital({...newHospital, name: e.target.value})}
+                  placeholder="e.g. Biratnagar Specialty Care"
+                  className="w-full p-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Primary Region/City</label>
+                <input 
+                  required
+                  type="text" 
+                  value={newHospital.city} 
+                  onChange={e => setNewHospital({...newHospital, city: e.target.value})}
+                  placeholder="e.g. New York"
+                  className="w-full p-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Physical Address</label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="text" 
+                    value={newHospital.address} 
+                    onChange={e => setNewHospital({...newHospital, address: e.target.value})}
+                    placeholder="Block, Street, Landmark"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Authorized Contact Phone</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="tel" 
+                    value={newHospital.phone} 
+                    onChange={e => setNewHospital({...newHospital, phone: e.target.value})}
+                    placeholder="Official hotline"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Verified Email Domain</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="email" 
+                    value={newHospital.email} 
+                    onChange={e => setNewHospital({...newHospital, email: e.target.value})}
+                    placeholder="admin@hospital-domain.com"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 transition-all" 
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-50">
+                <Button type="button" variant="outline" onClick={() => setShowAddHospital(false)} className="rounded-xl px-8">Discard</Button>
+                <Button type="submit" isLoading={isAddingHospital} className="px-12 font-black uppercase tracking-widest rounded-xl shadow-xl shadow-blood-500/20">Register to Database</Button>
+              </div>
+            </form>
+          </div>
+        )}
 
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-         {hospitals.length > 0 ? hospitals.map(hospital => (
-           <div key={hospital.id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all group overflow-hidden relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredHospitals.length > 0 ? filteredHospitals.map(hospital => (
+            <div key={hospital.id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all group overflow-hidden relative">
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-all group-hover:scale-110 pointer-events-none">
                 <Building2 size={80} />
               </div>
@@ -659,19 +680,20 @@ export const AdminPanel: React.FC = () => {
                     <span className="text-[10px] font-black text-green-600 uppercase tracking-widest bg-green-50 px-2.5 py-1 rounded-full border border-green-100">Verified</span>
                  </div>
               </div>
-           </div>
-         )) : (
-           <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border border-dashed border-gray-200">
-             <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Building2 size={40} className="text-gray-200" />
-             </div>
-             <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-sm">Registry is Empty</p>
-             <p className="text-gray-400 text-xs font-medium mt-2">Initialize the network by registering the first hospital facility.</p>
-           </div>
-         )}
-       </div>
-    </div>
-  );
+            </div>
+          )) : (
+            <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border border-dashed border-gray-200">
+              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                 {hospitalSearchQuery ? <Search size={40} className="text-gray-200" /> : <Building2 size={40} className="text-gray-200" />}
+              </div>
+              <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-sm">{hospitalSearchQuery ? 'No Results Found' : 'Registry is Empty'}</p>
+              <p className="text-gray-400 text-xs font-medium mt-2">{hospitalSearchQuery ? 'Try adjusting your search criteria.' : 'Initialize the network by registering the first hospital facility.'}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-8 pb-12">

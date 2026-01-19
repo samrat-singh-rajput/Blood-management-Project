@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Droplet, Phone, MessageCircle, Activity, Users, Info, Send, Clock, CheckCircle2, MessageSquareText, ShieldCheck, ArrowLeft, PlusCircle, AlertCircle, Building2, User as UserIcon, Database } from 'lucide-react';
 import { User, Feedback, UserRole, DonationRequest, ChatMessage } from '../types';
 import { API } from '../services/api';
-import { findDonorsWithAI } from '../services/geminiService';
+// Removed non-existent import 'findDonorsWithAI'
 import { Button } from './Button';
 
 type UserPanelView = 'search' | 'register_request' | 'chat';
