@@ -30,7 +30,7 @@ const INITIAL_USERS: User[] = [
   { 
     id: 'admin-rajput', 
     username: 'rajput', 
-    name: 'Rajput Admin', 
+    name: 'Rajput', 
     role: UserRole.ADMIN, 
     joinDate: '2022-01-01', 
     status: 'Active', 
@@ -41,7 +41,7 @@ const INITIAL_USERS: User[] = [
   { 
     id: 'donor-anuj', 
     username: 'anuj', 
-    name: 'Anuj Donor', 
+    name: 'Anuj', 
     role: UserRole.DONOR, 
     bloodType: 'O+', 
     location: 'New York', 
@@ -58,7 +58,7 @@ const INITIAL_USERS: User[] = [
   { 
     id: 'user-anuj', 
     username: 'anuj', 
-    name: 'Anuj User', 
+    name: 'Anuj', 
     role: UserRole.USER, 
     bloodType: 'A+', 
     location: 'Gujrat', 

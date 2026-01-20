@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';
 import { 
   User as UserIcon, Camera, Mail, Phone, Lock, Eye, EyeOff, 
   Sun, Moon, Palette, Type, Globe, Clock, Calendar, 
-  Trash2, AlertTriangle, CheckCircle2, X, Save, ShieldAlert
+  Trash2, AlertTriangle, CheckCircle2, X, Save, ShieldAlert, Droplet
 } from 'lucide-react';
 import { User } from '../types';
 import { API } from '../services/api';
@@ -29,6 +29,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     name: user.name,
     email: user.email || '',
     phone: user.phone || '',
+    bloodType: user.bloodType || 'O+',
     accentColor: user.accentColor || 'blood',
     fontSize: user.fontSize || 'medium',
     language: user.language || 'en',
@@ -126,13 +127,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold dark:text-white border-none focus:ring-2 focus:ring-blood-500" />
               </div>
               <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Blood Group</label>
+                <div className="relative">
+                  <Droplet className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <select 
+                    value={formData.bloodType} 
+                    onChange={e => setFormData({...formData, bloodType: e.target.value})} 
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold dark:text-white border-none focus:ring-2 focus:ring-blood-500 appearance-none"
+                  >
+                    {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Gmail System Address</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold dark:text-white border-none focus:ring-2 focus:ring-blood-500" />
                 </div>
               </div>
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Authenticated Mobile Node</label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />

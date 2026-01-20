@@ -328,7 +328,7 @@ const App: React.FC = () => {
       const user = await API.login(loginForm.username, loginForm.password, loginForm.role);
       if (user) {
         if (user.status === 'Blocked') {
-           setAuthError('ACCESS DENIED: Your account has been blocked.');
+           setAuthError('You are blocked by admin.');
            setIsAuthLoading(false);
            return;
         }
@@ -411,9 +411,9 @@ const App: React.FC = () => {
                   </button>
                   <div className="absolute top-full right-0 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-3 z-50 mt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top scale-95 group-hover:scale-100 border border-gray-100 dark:border-gray-700">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2 text-left">Select Node Access</p>
-                    <button onClick={() => navigateToLogin(UserRole.ADMIN)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><ShieldCheck size={18} className="text-blood-600"/> <div>Admin Console <p className="text-[10px] text-gray-400 font-medium">Control Center</p></div></button>
-                    <button onClick={() => navigateToLogin(UserRole.DONOR)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><Heart size={18} className="text-blood-600"/> <div>Donor Portal <p className="text-[10px] text-gray-400 font-medium">Donate & Earn XP</p></div></button>
-                    <button onClick={() => navigateToLogin(UserRole.USER)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><UserIcon size={18} className="text-blood-600"/> <div>User Panel <p className="text-[10px] text-gray-400 font-medium">Blood Requests</p></div></button>
+                    <button onClick={() => navigateToLogin(UserRole.ADMIN)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><ShieldCheck size={18} className="text-blood-600"/> <div>Admin Login <p className="text-[10px] text-gray-400 font-medium">Control Center</p></div></button>
+                    <button onClick={() => navigateToLogin(UserRole.DONOR)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><Heart size={18} className="text-blood-600"/> <div>Donor Login <p className="text-[10px] text-gray-400 font-medium">Donate & Earn XP</p></div></button>
+                    <button onClick={() => navigateToLogin(UserRole.USER)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><UserIcon size={18} className="text-blood-600"/> <div>User Login <p className="text-[10px] text-gray-400 font-medium">Blood Requests</p></div></button>
                   </div>
                 </div>
                 <Button onClick={() => { resetAuthForms(); setCurrentView('register'); }} className="bg-blood-600 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-xl shadow-blood-500/20 hover:-translate-y-0.5 transition-all">Sign Up</Button>
@@ -487,10 +487,22 @@ const App: React.FC = () => {
                 )}
                 
                 {currentView === 'register' && (
-                   <div className="space-y-2 text-left">
-                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Gmail System ID</p>
-                     <input type="email" placeholder="example@gmail.com" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white shadow-inner" required />
-                   </div>
+                   <>
+                     <div className="space-y-2 text-left">
+                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Gmail System ID</p>
+                       <input type="email" placeholder="example@gmail.com" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white shadow-inner" required />
+                     </div>
+                     <div className="space-y-2 text-left">
+                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Blood Group</p>
+                       <select 
+                         value={registerForm.bloodType} 
+                         onChange={e => setRegisterForm({...registerForm, bloodType: e.target.value})}
+                         className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white shadow-inner appearance-none font-bold"
+                       >
+                         {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(t => <option key={t} value={t}>{t}</option>)}
+                       </select>
+                     </div>
+                   </>
                 )}
                 
                 <div className="space-y-2 text-left">
