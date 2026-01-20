@@ -5,7 +5,7 @@ import {
   Send, Minus, Bell, ChevronDown, Heart, Activity, Phone, ShieldCheck, 
   Mail, MapPin, Save, Settings, Loader2, UserPlus, LogIn, Database, 
   CheckCircle, AlertTriangle, Mic, Camera, BrainCircuit, Headphones,
-  Sun, Moon
+  Sun, Moon, ShieldAlert
 } from 'lucide-react';
 import { User, UserRole } from './types';
 import { API } from './services/api';
@@ -264,6 +264,17 @@ const App: React.FC = () => {
     email: '' 
   });
 
+  const resetAuthForms = (targetRole?: UserRole) => {
+    setLoginForm({ username: '', password: '', role: targetRole !== undefined ? targetRole : loginForm.role });
+    setRegisterForm({ username: '', password: '', role: targetRole !== undefined ? targetRole : registerForm.role, bloodType: 'O+', location: '', email: '' });
+    setAuthError('');
+  };
+
+  const navigateToLogin = (role: UserRole) => {
+    resetAuthForms(role);
+    setCurrentView('login');
+  };
+
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -274,15 +285,11 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
-  // Handle personalizations (Accent Color, Font Size)
   useEffect(() => {
     if (currentUser) {
-      // Font Size scaling
       const fontSize = currentUser.fontSize || 'medium';
       const rootSize = fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
       document.documentElement.style.fontSize = rootSize;
-
-      // Accent Color mapping to CSS classes
       const color = currentUser.accentColor || 'blood';
       document.body.className = `accent-${color}`;
     } else {
@@ -317,6 +324,7 @@ const App: React.FC = () => {
     setIsAuthLoading(true);
     setAuthError('');
     try {
+      const wasInactive = (await API.getUsers()).find(u => u.username === loginForm.username && u.role === loginForm.role)?.status === 'Inactive';
       const user = await API.login(loginForm.username, loginForm.password, loginForm.role);
       if (user) {
         if (user.status === 'Blocked') {
@@ -327,8 +335,9 @@ const App: React.FC = () => {
         setCurrentUser(user);
         localStorage.setItem('lifeflow_current_user', JSON.stringify(user));
         setCurrentView('dashboard');
-        setNotification(`Welcome back, ${user.name}!`);
-        setTimeout(() => setNotification(null), 3000);
+        setNotification(wasInactive ? "Welcome back! Account presence restored." : `Welcome back, ${user.name}!`);
+        resetAuthForms(); // Clear after successful login
+        setTimeout(() => setNotification(null), 4000);
       } else {
         setAuthError('Invalid credentials. Access Denied.');
       }
@@ -353,6 +362,7 @@ const App: React.FC = () => {
       localStorage.setItem('lifeflow_current_user', JSON.stringify(user));
       setCurrentView('dashboard');
       setNotification("Registration successful.");
+      resetAuthForms(); // Clear after successful registration
       setTimeout(() => setNotification(null), 3000);
     } catch (err: any) {
       setAuthError(err.message || "Registration failed.");
@@ -364,15 +374,24 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     setShowSettings(false);
+    resetAuthForms();
     localStorage.removeItem('lifeflow_current_user');
     setCurrentView('landing');
+  };
+
+  const getPortalTheme = () => {
+    switch (loginForm.role) {
+      case UserRole.ADMIN: return { name: 'Admin Portal', loginTitle: 'Admin Login', color: 'bg-gray-900', icon: <ShieldCheck className="text-white"/> };
+      case UserRole.DONOR: return { name: 'Donor Portal', loginTitle: 'Donor Login', color: 'bg-blood-600', icon: <Heart className="text-white"/> };
+      default: return { name: 'User Portal', loginTitle: 'User Login', color: 'bg-blue-600', icon: <UserIcon className="text-white"/> };
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <nav className={`fixed w-full z-40 transition-all duration-500 ${currentView === 'landing' ? 'bg-gray-900/95 border-b border-white/10 py-5' : 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b dark:border-gray-800 shadow-sm py-4'}`}>
         <div className="container mx-auto px-6 flex justify-between items-center">
-          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setCurrentView(currentUser ? 'dashboard' : 'landing')}>
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { if(currentUser) { setCurrentView('dashboard'); } else { setCurrentView('landing'); resetAuthForms(); } }}>
             <div className="bg-blood-600 text-white p-2.5 rounded-2xl shadow-xl group-hover:scale-110 transition-transform"><Droplet size={26} fill="currentColor"/></div>
             <span className={`text-2xl font-black tracking-tighter ${currentView === 'landing' ? 'text-white' : 'text-gray-900 dark:text-white'}`}>BloodBank</span>
           </div>
@@ -391,13 +410,13 @@ const App: React.FC = () => {
                     <LogIn size={18}/> Login <ChevronDown size={14} className="group-hover:rotate-180 transition-transform"/>
                   </button>
                   <div className="absolute top-full right-0 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-3 z-50 mt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top scale-95 group-hover:scale-100 border border-gray-100 dark:border-gray-700">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2 text-left">Select Portal</p>
-                    <button onClick={() => { setLoginForm({...loginForm, role: UserRole.ADMIN}); setCurrentView('login'); }} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><ShieldCheck size={18} className="text-blood-600"/> <div>Admin Console <p className="text-[10px] text-gray-400 font-medium">Control Center</p></div></button>
-                    <button onClick={() => { setLoginForm({...loginForm, role: UserRole.DONOR}); setCurrentView('login'); }} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><Heart size={18} className="text-blood-600"/> <div>Donor Portal <p className="text-[10px] text-gray-400 font-medium">Donate & Earn XP</p></div></button>
-                    <button onClick={() => { setLoginForm({...loginForm, role: UserRole.USER}); setCurrentView('login'); }} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><UserIcon size={18} className="text-blood-600"/> <div>User Panel <p className="text-[10px] text-gray-400 font-medium">Blood Requests</p></div></button>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2 text-left">Select Node Access</p>
+                    <button onClick={() => navigateToLogin(UserRole.ADMIN)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><ShieldCheck size={18} className="text-blood-600"/> <div>Admin Console <p className="text-[10px] text-gray-400 font-medium">Control Center</p></div></button>
+                    <button onClick={() => navigateToLogin(UserRole.DONOR)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><Heart size={18} className="text-blood-600"/> <div>Donor Portal <p className="text-[10px] text-gray-400 font-medium">Donate & Earn XP</p></div></button>
+                    <button onClick={() => navigateToLogin(UserRole.USER)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><UserIcon size={18} className="text-blood-600"/> <div>User Panel <p className="text-[10px] text-gray-400 font-medium">Blood Requests</p></div></button>
                   </div>
                 </div>
-                <Button onClick={() => setCurrentView('register')} className="bg-blood-600 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-xl shadow-blood-500/20 hover:-translate-y-0.5 transition-all">Sign Up</Button>
+                <Button onClick={() => { resetAuthForms(); setCurrentView('register'); }} className="bg-blood-600 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-xl shadow-blood-500/20 hover:-translate-y-0.5 transition-all">Sign Up</Button>
               </div>
             ) : (
               <div className="flex items-center gap-4">
@@ -436,54 +455,68 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {currentView === 'landing' && <LandingPage onNavigate={setCurrentView} />}
+        {currentView === 'landing' && <LandingPage onNavigate={(view) => { resetAuthForms(); setCurrentView(view); }} />}
 
         {(currentView === 'login' || currentView === 'register') && (
           <div className="min-h-[80vh] flex items-center justify-center p-6 animate-fade-in-up">
-            <div className="bg-white dark:bg-gray-900 p-12 rounded-[3rem] shadow-2xl w-full max-w-md border border-gray-100 dark:border-gray-800 relative overflow-hidden transition-colors duration-300">
-              <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blood-50 dark:bg-blood-900/10 rounded-full blur-3xl opacity-50"></div>
-              <button onClick={() => setCurrentView('landing')} className="mb-8 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center gap-2 transition-colors font-bold text-sm group"><ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/> Back</button>
+            <div className="bg-white dark:bg-gray-900 p-12 rounded-[3.5rem] shadow-2xl w-full max-w-md border border-gray-100 dark:border-gray-800 relative overflow-hidden transition-colors duration-300">
+              <div className={`absolute top-0 left-0 w-full h-2 ${currentView === 'register' ? 'bg-blood-600' : getPortalTheme().color}`}></div>
+              
+              <button onClick={() => { setCurrentView('landing'); resetAuthForms(); }} className="mb-8 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center gap-2 transition-colors font-bold text-sm group"><ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/> Back</button>
               
               <div className="mb-10 text-left">
-                <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2">{currentView === 'login' ? 'Login' : 'Join Us'}</h2>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">Access the secure life-saving network.</p>
+                {currentView === 'login' && (
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl ${getPortalTheme().color} text-white text-[10px] font-black uppercase tracking-widest mb-4 shadow-lg`}>
+                    {getPortalTheme().icon} {getPortalTheme().name}
+                  </div>
+                )}
+                <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2 leading-tight">
+                  {currentView === 'login' ? getPortalTheme().loginTitle : 'Join the Network'}
+                </h2>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">
+                  {currentView === 'login' ? `Authenticate to access the ${getPortalTheme().name.toLowerCase()}.` : 'Become a life-saving member of our community.'}
+                </p>
               </div>
               
               <form onSubmit={currentView === 'login' ? handleLogin : handleRegister} className="space-y-5">
                 {currentView === 'register' && (
                   <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-6">
-                    <button type="button" onClick={() => setRegisterForm({...registerForm, role: UserRole.USER})} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.USER ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New User</button>
-                    <button type="button" onClick={() => setRegisterForm({...registerForm, role: UserRole.DONOR})} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.DONOR ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New Donor</button>
+                    <button type="button" onClick={() => { const r = UserRole.USER; resetAuthForms(r); setRegisterForm(prev => ({...prev, role: r})); }} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.USER ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New User</button>
+                    <button type="button" onClick={() => { const r = UserRole.DONOR; resetAuthForms(r); setRegisterForm(prev => ({...prev, role: r})); }} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.DONOR ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New Donor</button>
                   </div>
                 )}
                 
                 {currentView === 'register' && (
                    <div className="space-y-2 text-left">
-                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Gmail Address</p>
-                     <input type="email" placeholder="example@gmail.com" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white" required />
+                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Gmail System ID</p>
+                     <input type="email" placeholder="example@gmail.com" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white shadow-inner" required />
                    </div>
                 )}
                 
                 <div className="space-y-2 text-left">
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Username</p>
-                   <input type="text" placeholder="Unique identifier" value={currentView === 'login' ? loginForm.username : registerForm.username} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, username: e.target.value}) : setRegisterForm({...registerForm, username: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white" required />
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Unique Username</p>
+                   <input type="text" placeholder="Identity code" value={currentView === 'login' ? loginForm.username : registerForm.username} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, username: e.target.value}) : setRegisterForm({...registerForm, username: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white shadow-inner" required />
                 </div>
 
                 <div className="space-y-2 text-left">
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Password</p>
-                   <input type="password" placeholder="••••••••" value={currentView === 'login' ? loginForm.password : registerForm.password} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, password: e.target.value}) : setRegisterForm({...registerForm, password: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white" required />
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Secure Password</p>
+                   <input type="password" placeholder="••••••••" value={currentView === 'login' ? loginForm.password : registerForm.password} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, password: e.target.value}) : setRegisterForm({...registerForm, password: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white shadow-inner" required />
                 </div>
                 
-                {authError && <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl text-center flex items-center justify-center gap-2"><AlertTriangle size={14}/> {authError}</div>}
+                {authError && (
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl text-center flex items-center justify-center gap-2 border border-red-100 dark:border-red-900/30">
+                    <ShieldAlert size={14}/> {authError}
+                  </div>
+                )}
                 
-                <Button isLoading={isAuthLoading} className="w-full py-5 text-lg bg-blood-600 text-white rounded-2xl shadow-2xl shadow-blood-500/30 font-black">
-                   {currentView === 'login' ? 'Login' : 'Create Account'}
+                <Button isLoading={isAuthLoading} className={`w-full py-5 text-lg rounded-2xl shadow-2xl font-black ${currentView === 'login' ? getPortalTheme().color : 'bg-blood-600'} text-white shadow-blood-500/30`}>
+                   {currentView === 'login' ? 'Authenticate' : 'Establish Presence'}
                 </Button>
                 
                 <p className="text-center text-xs text-gray-400 font-medium">
-                   {currentView === 'login' ? "Don't have an account?" : "Already a member?"} 
-                   <button type="button" onClick={() => setCurrentView(currentView === 'login' ? 'register' : 'login')} className="text-blood-600 dark:text-blood-400 font-black ml-1 hover:underline">
-                      {currentView === 'login' ? 'Sign up here' : 'Log in here'}
+                   {currentView === 'login' ? "Not in the registry?" : "Already established?"} 
+                   <button type="button" onClick={() => { resetAuthForms(); setCurrentView(currentView === 'login' ? 'register' : 'login'); }} className="text-blood-600 dark:text-blood-400 font-black ml-1 hover:underline">
+                      {currentView === 'login' ? 'Enroll now' : 'Login here'}
                    </button>
                 </p>
               </form>
