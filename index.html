@@ -56,39 +56,26 @@
       }
     </script>
     <style>
+      /* Base personalization support */
+      :root {
+        --accent-color: #e11d48;
+      }
+
+      .accent-blue { --accent-color: #2563eb; }
+      .accent-green { --accent-color: #16a34a; }
+      .accent-purple { --accent-color: #9333ea; }
+      .accent-blood { --accent-color: #e11d48; }
+
+      .text-accent { color: var(--accent-color); }
+      .bg-accent { background-color: var(--accent-color); }
+      .border-accent { border-color: var(--accent-color); }
+      .ring-accent { --tw-ring-color: var(--accent-color); }
+
       /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #e11d48;
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #be123c;
-      }
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: #f1f1f1; }
+      ::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 4px; }
 
-      /* Liquid Animation Classes */
-      .liquid-bg {
-        position: relative;
-        overflow: hidden;
-      }
-      .liquid-bg::before {
-        content: "";
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 40%;
-        animation: blob 7s infinite;
-      }
-
-      /* Glassmorphism */
       .glass {
         background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(10px);
@@ -115,7 +102,7 @@
 }
 </script>
 </head>
-  <body>
+  <body class="accent-blood">
     <div id="root"></div>
   </body>
 </html>

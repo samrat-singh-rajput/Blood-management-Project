@@ -21,7 +21,13 @@ export interface User {
   address?: string;
   level?: number;
   xp?: number;
-  status?: 'Active' | 'Blocked';
+  status?: 'Active' | 'Blocked' | 'Inactive';
+  // Personalization
+  accentColor?: 'blood' | 'blue' | 'green' | 'purple';
+  fontSize?: 'small' | 'medium' | 'large';
+  language?: 'en' | 'hi';
+  timeFormat?: '12' | '24';
+  dateFormat?: 'DD/MM/YYYY' | 'MM/DD/YYYY';
 }
 
 export interface ChatMessage {
@@ -59,19 +65,6 @@ export interface DonationRequest {
   units?: number;
 }
 
-export interface BloodRequest {
-  id: string;
-  requesterName: string;
-  requesterType: 'Hospital' | 'User';
-  bloodType: string;
-  units: number;
-  urgency: 'Normal' | 'High' | 'Critical';
-  location: string;
-  contact: string;
-  distance: string;
-  date: string;
-}
-
 export interface DonorCertificate {
   id: string;
   donorId: string;
@@ -106,6 +99,8 @@ export interface EmergencyKey {
   usesRemaining: number;
   issuedDate: string;
   status: 'Active' | 'Expired';
+  // Added ownerId to link keys to specific users in the storage
+  ownerId?: string;
 }
 
 export interface SecurityLog {
@@ -116,6 +111,15 @@ export interface SecurityLog {
   user?: string;
 }
 
+export interface Appointment {
+  id: string;
+  hospitalName: string;
+  date: string;
+  time: string;
+  status: 'Scheduled' | 'Completed';
+}
+
+// Added missing interface to fix build errors in components and mock services
 export interface Campaign {
   id: string;
   title: string;
@@ -126,19 +130,25 @@ export interface Campaign {
   attendees: number;
 }
 
+// Added missing interface to fix build errors in components and mock services
 export interface Achievement {
   id: string;
   title: string;
   description: string;
   icon: string;
-  earnedDate?: string;
   locked: boolean;
 }
 
-export interface Appointment {
+// Added missing interface to fix build errors in components and mock services
+export interface BloodRequest {
   id: string;
-  hospitalName: string;
+  requesterName: string;
+  requesterType: string;
+  bloodType: string;
+  units: number;
+  urgency: 'Low' | 'Medium' | 'Critical';
+  location: string;
+  contact: string;
+  distance: string;
   date: string;
-  time: string;
-  status: 'Scheduled' | 'Completed';
 }

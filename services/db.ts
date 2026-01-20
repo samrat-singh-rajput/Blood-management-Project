@@ -1,5 +1,5 @@
 
-import { User, UserRole, BloodStock, DonationRequest, Feedback, SecurityLog, Hospital, ChatMessage, DonorCertificate, Appointment } from "../types";
+import { User, UserRole, BloodStock, DonationRequest, Feedback, SecurityLog, Hospital, ChatMessage, DonorCertificate, Appointment, EmergencyKey } from "../types";
 
 const DB_KEYS = {
   USERS: 'lifeflow_users',
@@ -10,7 +10,9 @@ const DB_KEYS = {
   HOSPITALS: 'lifeflow_hospitals',
   CHATS: 'lifeflow_chats',
   CERTIFICATES: 'lifeflow_certificates',
-  APPOINTMENTS: 'lifeflow_appointments'
+  APPOINTMENTS: 'lifeflow_appointments',
+  // Local storage key for emergency grant keys
+  EMERGENCY_KEYS: 'lifeflow_emergency_keys'
 };
 
 const INITIAL_STOCKS: BloodStock[] = [
@@ -95,6 +97,10 @@ export const DB = {
     if (!localStorage.getItem(DB_KEYS.APPOINTMENTS)) {
       localStorage.setItem(DB_KEYS.APPOINTMENTS, JSON.stringify([]));
     }
+    // Added initialization for emergency keys
+    if (!localStorage.getItem(DB_KEYS.EMERGENCY_KEYS)) {
+      localStorage.setItem(DB_KEYS.EMERGENCY_KEYS, JSON.stringify([]));
+    }
     if (!localStorage.getItem(DB_KEYS.LOGS)) {
       localStorage.setItem(DB_KEYS.LOGS, JSON.stringify([{ id: 's1', severity: 'Low', message: 'System Initialized', timestamp: new Date().toLocaleString() }]));
     }
@@ -123,6 +129,10 @@ export const DB = {
 
   getAppointments: (): Appointment[] => JSON.parse(localStorage.getItem(DB_KEYS.APPOINTMENTS) || '[]'),
   saveAppointments: (apps: Appointment[]) => localStorage.setItem(DB_KEYS.APPOINTMENTS, JSON.stringify(apps)),
+
+  // Added getter and setter for emergency keys to fix API access errors
+  getEmergencyKeys: (): EmergencyKey[] => JSON.parse(localStorage.getItem(DB_KEYS.EMERGENCY_KEYS) || '[]'),
+  saveEmergencyKeys: (keys: EmergencyKey[]) => localStorage.setItem(DB_KEYS.EMERGENCY_KEYS, JSON.stringify(keys)),
 
   getLogs: (): SecurityLog[] => JSON.parse(localStorage.getItem(DB_KEYS.LOGS) || '[]'),
   addLog: (log: SecurityLog) => {

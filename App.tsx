@@ -14,22 +14,24 @@ import { DonorPanel } from './components/DonorPanel';
 import { UserPanel } from './components/UserPanel';
 import { LandingPage } from './components/LandingPage';
 import { Button } from './components/Button';
+import { SettingsModal } from './components/SettingsModal';
 import { chatWithSamrat, analyzeMedicalImage, transcribeAudio } from './services/geminiService';
 
 const ThemeToggle: React.FC<{ isDark: boolean; onToggle: () => void }> = ({ isDark, onToggle }) => (
   <button 
     onClick={onToggle}
-    className="relative w-16 h-8 bg-gray-900 dark:bg-gray-700 rounded-full p-1 transition-all duration-300 flex items-center shadow-inner border border-white/10"
+    className="relative w-14 h-7 bg-gray-200 dark:bg-gray-700 rounded-full p-1 transition-all duration-300 flex items-center shadow-inner border border-gray-300 dark:border-white/10"
+    aria-label="Toggle Dark Mode"
   >
-    <div className={`flex items-center justify-center w-full px-1`}>
-      <Sun size={12} className={`text-yellow-400 z-10 ${isDark ? 'opacity-30' : 'opacity-100'}`} />
-      <div className="flex-1"></div>
-      <Moon size={12} className={`text-yellow-200 z-10 ${!isDark ? 'opacity-30' : 'opacity-100'}`} />
+    <div className="flex items-center justify-between w-full px-1">
+      <Sun size={10} className={`${isDark ? 'text-gray-400' : 'text-yellow-500'} z-0`} />
+      <Moon size={10} className={`${!isDark ? 'text-gray-400' : 'text-yellow-200'} z-0`} />
     </div>
     <div 
-      className={`absolute top-1 bottom-1 w-6 h-6 bg-white rounded-full shadow-lg transition-transform duration-300 transform flex items-center justify-center ${isDark ? 'translate-x-8' : 'translate-x-0'}`}
+      className={`absolute top-0.5 bottom-0.5 w-6 h-6 bg-white dark:bg-blood-600 rounded-full shadow-md transition-transform duration-300 transform flex items-center justify-center`}
+      style={{ transform: isDark ? 'translateX(1.75rem)' : 'translateX(0)' }}
     >
-      {isDark ? <Moon size={12} className="text-blood-600" /> : <Sun size={12} className="text-blood-600" />}
+      {isDark ? <Moon size={12} className="text-white" /> : <Sun size={12} className="text-yellow-600" />}
     </div>
   </button>
 );
@@ -240,7 +242,6 @@ const SamratBot: React.FC<{ user: User | null }> = ({ user }) => {
   );
 };
 
-// Fix: Define the ViewState type to resolve the "Cannot find name 'ViewState'" error.
 type ViewState = 'landing' | 'login' | 'register' | 'dashboard';
 
 const App: React.FC = () => {
@@ -273,8 +274,25 @@ const App: React.FC = () => {
     }
   }, [isDarkMode]);
 
+  // Handle personalizations (Accent Color, Font Size)
   useEffect(() => {
-    const checkBlockedStatus = async () => {
+    if (currentUser) {
+      // Font Size scaling
+      const fontSize = currentUser.fontSize || 'medium';
+      const rootSize = fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
+      document.documentElement.style.fontSize = rootSize;
+
+      // Accent Color mapping to CSS classes
+      const color = currentUser.accentColor || 'blood';
+      document.body.className = `accent-${color}`;
+    } else {
+      document.body.className = 'accent-blood';
+      document.documentElement.style.fontSize = '16px';
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    const checkStatus = async () => {
       const saved = localStorage.getItem('lifeflow_current_user');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -285,29 +303,14 @@ const App: React.FC = () => {
            localStorage.removeItem('lifeflow_current_user');
            setCurrentUser(null);
            setCurrentView('landing');
-        } else {
-           setCurrentUser(parsed);
+        } else if (freshUser) {
+           setCurrentUser(freshUser);
            setCurrentView('dashboard');
         }
       }
     };
-    checkBlockedStatus();
+    checkStatus();
   }, []);
-
-  useEffect(() => {
-    setAuthError('');
-    if (currentView === 'login') {
-      setLoginForm(prev => ({ ...prev, username: '', password: '' }));
-    } else if (currentView === 'register') {
-      setRegisterForm(prev => ({ 
-        ...prev, 
-        username: '', 
-        password: '', 
-        location: '', 
-        email: '' 
-      }));
-    }
-  }, [currentView]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,11 +320,10 @@ const App: React.FC = () => {
       const user = await API.login(loginForm.username, loginForm.password, loginForm.role);
       if (user) {
         if (user.status === 'Blocked') {
-           setAuthError('ACCESS DENIED: Your account has been blocked by an administrator. Please contact support.');
+           setAuthError('ACCESS DENIED: Your account has been blocked.');
            setIsAuthLoading(false);
            return;
         }
-
         setCurrentUser(user);
         localStorage.setItem('lifeflow_current_user', JSON.stringify(user));
         setCurrentView('dashboard');
@@ -340,24 +342,17 @@ const App: React.FC = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
-
     if (!registerForm.email.toLowerCase().endsWith('@gmail.com')) {
       setAuthError('Registration requires a valid @gmail.com address.');
       return;
     }
-
-    if (!registerForm.username || !registerForm.password) {
-      setAuthError('Required fields: Username, Gmail, and Password.');
-      return;
-    }
-
     setIsAuthLoading(true);
     try {
       const user = await API.register({ ...registerForm, name: registerForm.username });
       setCurrentUser(user);
       localStorage.setItem('lifeflow_current_user', JSON.stringify(user));
       setCurrentView('dashboard');
-      setNotification("Registration successful. Data saved to database.");
+      setNotification("Registration successful.");
       setTimeout(() => setNotification(null), 3000);
     } catch (err: any) {
       setAuthError(err.message || "Registration failed.");
@@ -368,6 +363,7 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setShowSettings(false);
     localStorage.removeItem('lifeflow_current_user');
     setCurrentView('landing');
   };
@@ -381,9 +377,13 @@ const App: React.FC = () => {
             <span className={`text-2xl font-black tracking-tighter ${currentView === 'landing' ? 'text-white' : 'text-gray-900 dark:text-white'}`}>BloodBank</span>
           </div>
 
-          <div className="flex items-center gap-6">
-            <ThemeToggle isDark={isDarkMode} onToggle={() => setIsDarkMode(!isDarkMode)} />
-            
+          <div className="flex items-center gap-4">
+            {currentView !== 'landing' && (
+              <div className="mr-2">
+                <ThemeToggle isDark={isDarkMode} onToggle={() => setIsDarkMode(!isDarkMode)} />
+              </div>
+            )}
+
             {!currentUser ? (
               <div className="flex items-center gap-4">
                 <div className="group relative">
@@ -391,13 +391,13 @@ const App: React.FC = () => {
                     <LogIn size={18}/> Login <ChevronDown size={14} className="group-hover:rotate-180 transition-transform"/>
                   </button>
                   <div className="absolute top-full right-0 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-3 z-50 mt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top scale-95 group-hover:scale-100 border border-gray-100 dark:border-gray-700">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2">Select Portal</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2 text-left">Select Portal</p>
                     <button onClick={() => { setLoginForm({...loginForm, role: UserRole.ADMIN}); setCurrentView('login'); }} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><ShieldCheck size={18} className="text-blood-600"/> <div>Admin Console <p className="text-[10px] text-gray-400 font-medium">Control Center</p></div></button>
                     <button onClick={() => { setLoginForm({...loginForm, role: UserRole.DONOR}); setCurrentView('login'); }} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><Heart size={18} className="text-blood-600"/> <div>Donor Portal <p className="text-[10px] text-gray-400 font-medium">Donate & Earn XP</p></div></button>
                     <button onClick={() => { setLoginForm({...loginForm, role: UserRole.USER}); setCurrentView('login'); }} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors text-gray-800 dark:text-gray-200"><UserIcon size={18} className="text-blood-600"/> <div>User Panel <p className="text-[10px] text-gray-400 font-medium">Blood Requests</p></div></button>
                   </div>
                 </div>
-                <Button onClick={() => setCurrentView('register')} className="bg-blood-600 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-xl shadow-blood-500/20 hover:-translate-y-0.5 active:translate-y-0 transition-all">Sign Up</Button>
+                <Button onClick={() => setCurrentView('register')} className="bg-blood-600 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-xl shadow-blood-500/20 hover:-translate-y-0.5 transition-all">Sign Up</Button>
               </div>
             ) : (
               <div className="flex items-center gap-4">
@@ -406,7 +406,9 @@ const App: React.FC = () => {
                 </div>
                 <div className="group relative">
                   <button className="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 p-2 rounded-2xl border border-transparent hover:border-blood-200 transition-all shadow-sm">
-                    <div className="w-9 h-9 rounded-xl bg-blood-600 text-white flex items-center justify-center font-black text-lg shadow-inner">{currentUser.name.charAt(0)}</div>
+                    <div className="w-9 h-9 rounded-xl bg-blood-600 text-white flex items-center justify-center font-black text-lg shadow-inner overflow-hidden">
+                      {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} className="w-full h-full object-cover" /> : currentUser.name.charAt(0)}
+                    </div>
                     <div className="text-left hidden lg:block pr-2">
                        <p className="text-sm font-black text-gray-800 dark:text-gray-200 leading-tight">{currentUser.name.split(' ')[0]}</p>
                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{currentUser.role}</p>
@@ -416,7 +418,7 @@ const App: React.FC = () => {
                   <div className="absolute top-full right-0 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-2 z-50 mt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform origin-top scale-95 group-hover:scale-100 border border-gray-100 dark:border-gray-700">
                     <button onClick={() => setShowSettings(true)} className="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-sm font-bold flex items-center gap-3 text-gray-700 dark:text-gray-300 transition-colors"><Settings size={18} className="text-gray-400"/> Settings</button>
                     <div className="h-px bg-gray-50 dark:bg-gray-700 my-2 mx-3"></div>
-                    <button onClick={handleLogout} className="w-full text-left p-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors"><LogOut size={18}/> Logout Session</button>
+                    <button onClick={handleLogout} className="w-full text-left p-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 rounded-xl text-sm font-bold flex items-center gap-3 transition-colors"><LogOut size={18}/> Logout</button>
                   </div>
                 </div>
               </div>
@@ -440,58 +442,42 @@ const App: React.FC = () => {
           <div className="min-h-[80vh] flex items-center justify-center p-6 animate-fade-in-up">
             <div className="bg-white dark:bg-gray-900 p-12 rounded-[3rem] shadow-2xl w-full max-w-md border border-gray-100 dark:border-gray-800 relative overflow-hidden transition-colors duration-300">
               <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blood-50 dark:bg-blood-900/10 rounded-full blur-3xl opacity-50"></div>
-              <button onClick={() => setCurrentView('landing')} className="mb-8 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center gap-2 transition-colors font-bold text-sm group"><ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/> Back to Home</button>
+              <button onClick={() => setCurrentView('landing')} className="mb-8 text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center gap-2 transition-colors font-bold text-sm group"><ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/> Back</button>
               
-              <div className="mb-10">
-                <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2">{currentView === 'login' ? `${loginForm.role} Login` : 'Create Account'}</h2>
-                <p className="text-gray-500 dark:text-gray-400 font-medium">{currentView === 'login' ? 'Welcome back to the secure network.' : 'Join the network of life savers.'}</p>
+              <div className="mb-10 text-left">
+                <h2 className="text-4xl font-black text-gray-900 dark:text-white mb-2">{currentView === 'login' ? 'Login' : 'Join Us'}</h2>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">Access the secure life-saving network.</p>
               </div>
               
               <form onSubmit={currentView === 'login' ? handleLogin : handleRegister} className="space-y-5">
                 {currentView === 'register' && (
-                  <>
-                    <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-6">
-                      <button type="button" onClick={() => setRegisterForm({...registerForm, role: UserRole.USER})} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.USER ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New User</button>
-                      <button type="button" onClick={() => setRegisterForm({...registerForm, role: UserRole.DONOR})} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.DONOR ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New Donor</button>
-                    </div>
-
-                    {registerForm.role === UserRole.DONOR && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Blood Group</p>
-                           <select value={registerForm.bloodType} onChange={e => setRegisterForm({...registerForm, bloodType: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none border border-transparent focus:ring-2 focus:ring-blood-500 appearance-none font-bold dark:text-white">
-                              {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(t => <option key={t} value={t}>{t}</option>)}
-                           </select>
-                        </div>
-                        <div className="space-y-2">
-                           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">City</p>
-                           <input type="text" placeholder="e.g. New York" value={registerForm.location} onChange={e => setRegisterForm({...registerForm, location: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-transparent outline-none focus:ring-2 focus:ring-blood-500 font-bold dark:text-white"/>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Gmail Address</p>
-                       <input type="email" placeholder="example@gmail.com" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent transition-all dark:text-white" required />
-                    </div>
-                  </>
+                  <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-2xl mb-6">
+                    <button type="button" onClick={() => setRegisterForm({...registerForm, role: UserRole.USER})} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.USER ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New User</button>
+                    <button type="button" onClick={() => setRegisterForm({...registerForm, role: UserRole.DONOR})} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${registerForm.role === UserRole.DONOR ? 'bg-white dark:bg-gray-700 shadow-sm text-blood-600 dark:text-blood-400' : 'text-gray-500'}`}>New Donor</button>
+                  </div>
                 )}
                 
-                <div className="space-y-2">
+                {currentView === 'register' && (
+                   <div className="space-y-2 text-left">
+                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Gmail Address</p>
+                     <input type="email" placeholder="example@gmail.com" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white" required />
+                   </div>
+                )}
+                
+                <div className="space-y-2 text-left">
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Username</p>
-                   <input type="text" placeholder="Unique identifier" value={currentView === 'login' ? loginForm.username : registerForm.username} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, username: e.target.value}) : setRegisterForm({...registerForm, username: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent transition-all dark:text-white" required />
+                   <input type="text" placeholder="Unique identifier" value={currentView === 'login' ? loginForm.username : registerForm.username} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, username: e.target.value}) : setRegisterForm({...registerForm, username: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white" required />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 text-left">
                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Password</p>
-                   <input type="password" placeholder="••••••••" value={currentView === 'login' ? loginForm.password : registerForm.password} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, password: e.target.value}) : setRegisterForm({...registerForm, password: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent transition-all dark:text-white" required />
+                   <input type="password" placeholder="••••••••" value={currentView === 'login' ? loginForm.password : registerForm.password} onChange={e => currentView === 'login' ? setLoginForm({...loginForm, password: e.target.value}) : setRegisterForm({...registerForm, password: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none focus:ring-2 focus:ring-blood-500 border border-transparent dark:text-white" required />
                 </div>
                 
                 {authError && <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl text-center flex items-center justify-center gap-2"><AlertTriangle size={14}/> {authError}</div>}
                 
-                <Button isLoading={isAuthLoading} className="w-full py-5 text-lg bg-blood-600 text-white rounded-2xl shadow-2xl shadow-blood-500/30 flex gap-3 hover:-translate-y-1 active:translate-y-0 transition-all font-black">
-                   {currentView === 'login' ? <LogIn size={22}/> : <UserPlus size={22}/>}
-                   {currentView === 'login' ? 'Login' : 'Sign Up'}
+                <Button isLoading={isAuthLoading} className="w-full py-5 text-lg bg-blood-600 text-white rounded-2xl shadow-2xl shadow-blood-500/30 font-black">
+                   {currentView === 'login' ? 'Login' : 'Create Account'}
                 </Button>
                 
                 <p className="text-center text-xs text-gray-400 font-medium">
@@ -511,6 +497,20 @@ const App: React.FC = () => {
           </main>
         )}
       </div>
+
+      {showSettings && currentUser && (
+        <SettingsModal 
+          user={currentUser} 
+          onClose={() => setShowSettings(false)} 
+          onUpdate={(updated) => {
+            setCurrentUser(updated);
+            localStorage.setItem('lifeflow_current_user', JSON.stringify(updated));
+          }}
+          onLogout={handleLogout}
+          isDarkMode={isDarkMode}
+          onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        />
+      )}
     </div>
   );
 };
