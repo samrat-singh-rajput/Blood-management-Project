@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, Calendar, CheckCircle, Lock, MapPin, Award, Clock, CreditCard, Share2, FileText, Upload, Eye, Activity, Trophy, Building2, User as UserIcon, Users, ArrowRight, AlertCircle, Search, Phone, MessageCircle, X, Key, UserCheck, Send, Droplet, Plus, Sparkles, Loader2, Database } from 'lucide-react';
+import { Heart, Calendar, CheckCircle, Lock, MapPin, Award, Clock, CreditCard, Share2, FileText, Upload, Eye, Activity, Trophy, Building2, User as UserIcon, Users, ArrowRight, AlertCircle, Search, Phone, MessageCircle, X, Key, UserCheck, Send, Droplet, Plus, Sparkles, Loader2, Database, Copy, ExternalLink, ShieldAlert } from 'lucide-react';
 import { User, Achievement, Appointment, BloodRequest, DonorCertificate, EmergencyKey, DonationRequest, ChatMessage, UserRole } from '../types';
-import { MockBackend } from '../services/mockBackend';
 import { API } from '../services/api';
 import { Button } from './Button';
 import { getHealthTips, analyzeMedicalImage } from '../services/geminiService';
+import { realtime } from '../services/realTimeService';
 
 interface DonorPanelProps {
   user: User;
@@ -21,6 +21,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
   const [healthTips, setHealthTips] = useState<string[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [certificates, setCertificates] = useState<DonorCertificate[]>([]);
+  const [emergencyKeys, setEmergencyKeys] = useState<EmergencyKey[]>([]);
   
   // Search & Filter States for Requests Feed
   const [searchBloodType, setSearchBloodType] = useState('All');
@@ -61,6 +62,11 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
   const [isSavingCert, setIsSavingCert] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  const refreshKeys = async () => {
+    const myKeys = await API.getEmergencyKeys(user.id);
+    setEmergencyKeys(myKeys);
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setHealthTips(await getHealthTips('Donor'));
@@ -68,9 +74,19 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
       setAppointments(apps);
       const myCerts = await API.getCertificates(user.id);
       setCertificates(myCerts);
+      await refreshKeys();
       loadRecentChats();
     };
     loadData();
+
+    // Listen for new emergency keys issued by admin
+    const handleNewKey = (data: { userId: string, key: EmergencyKey }) => {
+      if (data.userId === user.id) {
+        setEmergencyKeys(prev => [data.key, ...prev]);
+      }
+    };
+    realtime.on('NEW_EMERGENCY_KEY', handleNewKey);
+    return () => realtime.off('NEW_EMERGENCY_KEY', handleNewKey);
   }, [user.id]);
 
   useEffect(() => {
@@ -257,6 +273,11 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
     } finally {
       setIsSavingCert(false);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Key code copied to clipboard.");
   };
 
   const renderOverview = () => (
@@ -630,6 +651,97 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
     </div>
   );
 
+  const renderEmergencyAccess = () => (
+    <div className="space-y-8 animate-fade-in-up text-left">
+       <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-800 transition-all flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="text-left w-full">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3 uppercase tracking-tight">
+              <Key className="text-red-600" /> Emergency Grant Keys
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mt-1">Special priority keys issued by Administrators for emergency medical access.</p>
+          </div>
+          <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 rounded-2xl border border-red-100 dark:border-red-900/30">
+             <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-black uppercase text-[10px] tracking-widest">
+               <ShieldAlert size={16} /> Restricted Access
+             </div>
+          </div>
+       </div>
+
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {emergencyKeys.length > 0 ? (
+            emergencyKeys.map(key => (
+              <div key={key.id} className="relative group overflow-hidden bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-2xl hover:border-blood-200">
+                {/* Background Pattern */}
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <Key size={120} />
+                </div>
+                
+                <div className="relative z-10">
+                   <div className="flex justify-between items-start mb-6">
+                      <div className="flex items-center gap-3">
+                         <div className={`p-3 rounded-xl shadow-lg ${key.type === 'Gold' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}>
+                           <Key size={24} />
+                         </div>
+                         <div>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${key.type === 'Gold' ? 'bg-yellow-500 text-white' : 'bg-gray-800 text-white'}`}>
+                              {key.type} Tier
+                            </span>
+                            <h4 className="font-black text-gray-900 dark:text-white text-lg mt-0.5">Emergency Voucher</h4>
+                         </div>
+                      </div>
+                      <div className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${key.status === 'Active' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                         {key.status}
+                      </div>
+                   </div>
+
+                   <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 mb-6 flex flex-col items-center justify-center relative group-hover:bg-blood-50/50 transition-colors">
+                      <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.3em] mb-2">Unique Access Code</p>
+                      <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-widest font-mono select-all">
+                        {key.code}
+                      </h2>
+                      <button 
+                        onClick={() => copyToClipboard(key.code)}
+                        className="absolute right-4 bottom-4 p-2 bg-white dark:bg-gray-700 rounded-lg text-gray-400 hover:text-blood-600 shadow-sm border border-gray-100 dark:border-gray-600 transition-all"
+                        title="Copy to Clipboard"
+                      >
+                         <Copy size={16} />
+                      </button>
+                   </div>
+
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+                         <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                           <Clock size={10} /> Issued Date
+                         </p>
+                         <p className="font-black text-gray-900 dark:text-white text-sm">{key.issuedDate}</p>
+                      </div>
+                      <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+                         <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                           <Activity size={10} /> Uses Left
+                         </p>
+                         <p className="font-black text-gray-900 dark:text-white text-sm">{key.usesRemaining} Time(s)</p>
+                      </div>
+                   </div>
+
+                   <button className="w-full mt-6 py-4 rounded-2xl bg-gray-900 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-blood-600 transition-all shadow-xl shadow-gray-900/10">
+                      Learn How to Use <ExternalLink size={14} />
+                   </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full py-32 text-center bg-white dark:bg-gray-900 rounded-[3rem] border border-dashed border-gray-200 dark:border-gray-800">
+               <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Key size={40} className="text-gray-200 dark:text-gray-700" />
+               </div>
+               <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-sm">No Emergency Keys Issued</p>
+               <p className="text-gray-400 text-xs font-medium mt-2 max-w-xs mx-auto">Admin issues these keys to verified donors for critical emergency assistance.</p>
+            </div>
+          )}
+       </div>
+    </div>
+  );
+
   const renderChat = () => (
     <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex h-[700px] animate-fade-in-up transition-colors">
        <div className="w-80 border-r border-gray-100 dark:border-gray-800 flex flex-col bg-gray-50/50 dark:bg-gray-950/50">
@@ -722,7 +834,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
          {activeTab === 'requests' && renderRequests()}
          {activeTab === 'chat' && renderChat()}
          {activeTab === 'medical_certificate' && renderMedicalCertificates()}
-         {activeTab === 'emergency' && <div className="text-gray-400 py-20 text-center uppercase font-black tracking-widest text-xs opacity-30">Emergency Access Node is Offline</div>}
+         {activeTab === 'emergency' && renderEmergencyAccess()}
       </div>
     </div>
   );
