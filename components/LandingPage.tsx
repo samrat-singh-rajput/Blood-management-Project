@@ -288,7 +288,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                ))}
              </div>
              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-800 text-center order-2 sm:order-1">
-               © 2023 Blood Bank Management System. All life-saving rights reserved.
+               © 2023 Blood Bank Management System BY SAMRAT SINGH RAJPUT.
              </p>
           </div>
         </div>
