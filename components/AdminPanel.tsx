@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Users, Activity, MessageSquare, ShieldCheck, TrendingUp, BarChart2, Ban, CheckCircle, Trophy, MapPin, RefreshCcw, Send, X, Phone, Building2, Plus, Mail, Trash2, HeartHandshake, CheckCircle2, Key, Gift, Search } from 'lucide-react';
 import { User, DonationRequest, Feedback, BloodStock, SecurityLog, Hospital, UserRole } from '../types';
@@ -209,7 +208,7 @@ export const AdminPanel: React.FC = () => {
                  <tbody className="text-sm">
                    {requests.filter(r => r.type === 'Donation').length > 0 ? (
                      requests.filter(r => r.type === 'Donation').map(req => (
-                      <tr key={req.id} className="group hover:bg-gray-50 transition-colors border-b border-gray-50">
+                      <tr key={req._id} className="group hover:bg-gray-50 transition-colors border-b border-gray-50">
                         <td className="p-4 font-black text-gray-900">{req.donorName}</td>
                         <td className="p-4 text-gray-500 font-medium">{req.location || 'Local'}</td>
                         <td className="p-4">
@@ -226,7 +225,7 @@ export const AdminPanel: React.FC = () => {
                         <td className="p-4 text-right">
                           {req.status === 'Pending' ? (
                             <button 
-                              onClick={() => handleStatusUpdate(req.id, 'Completed')}
+                              onClick={() => handleStatusUpdate(req._id, 'Completed')}
                               className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-green-600 hover:text-white transition-all shadow-sm"
                             >
                               Pending
@@ -269,7 +268,7 @@ export const AdminPanel: React.FC = () => {
                  </thead>
                  <tbody className="text-sm">
                    {requests.filter(r => r.type === 'Request' || !r.type).length > 0 ? requests.filter(r => r.type === 'Request' || !r.type).map(req => (
-                     <tr key={req.id} className="group hover:bg-gray-50/80 transition-colors border-b border-gray-50">
+                     <tr key={req._id} className="group hover:bg-gray-50/80 transition-colors border-b border-gray-50">
                        <td className="py-5 pr-4">
                          <div>
                            <p className="font-black text-gray-900">{req.donorName}</p>
@@ -310,7 +309,7 @@ export const AdminPanel: React.FC = () => {
                        <td className="py-5 text-right">
                          {req.status === 'Pending' ? (
                            <button 
-                            onClick={() => handleStatusUpdate(req.id, 'Completed')}
+                            onClick={() => handleStatusUpdate(req._id, 'Completed')}
                             className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-yellow-100 text-yellow-800 border border-yellow-200 hover:bg-green-600 hover:text-white hover:border-green-700 transition-all shadow-sm"
                            >
                              Pending
@@ -339,7 +338,7 @@ export const AdminPanel: React.FC = () => {
             <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 uppercase tracking-widest text-xs"><ShieldCheck size={16} className="text-blue-600"/> Security Audit Logs</h3>
             <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar">
               {logs.length > 0 ? logs.map(log => (
-                <div key={log.id} className={`p-4 rounded-xl border-l-4 text-sm ${log.severity === 'Critical' ? 'bg-red-50 border-red-500' : log.severity === 'High' ? 'bg-orange-50 border-orange-500' : 'bg-gray-50 border-gray-300'}`}>
+                <div key={log._id} className={`p-4 rounded-xl border-l-4 text-sm ${log.severity === 'Critical' ? 'bg-red-50 border-red-500' : log.severity === 'High' ? 'bg-orange-50 border-orange-500' : 'bg-gray-50 border-gray-300'}`}>
                   <div className="flex justify-between items-center mb-1">
                     <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${log.severity === 'Critical' ? 'text-red-600' : 'text-gray-500'}`}>{log.severity}</span>
                     <span className="text-[10px] text-gray-400 font-mono">{log.timestamp}</span>
@@ -385,7 +384,7 @@ export const AdminPanel: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
                {users.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.role.toLowerCase().includes(searchQuery.toLowerCase())).map(user => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors group">
+                  <tr key={user._id} className="hover:bg-gray-50 transition-colors group">
                      <td className="p-4">
                         <div className="flex items-center gap-4">
                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 group-hover:bg-blood-600 group-hover:text-white transition-colors">
@@ -411,7 +410,7 @@ export const AdminPanel: React.FC = () => {
                      <td className="p-4">
                         {user.role === UserRole.DONOR ? (
                           <button 
-                            onClick={() => handleIssueKey(user.id, user.name)}
+                            onClick={() => handleIssueKey(user._id, user.name)}
                             className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg text-[10px] font-black uppercase border border-yellow-100 hover:bg-yellow-600 hover:text-white transition-all shadow-sm"
                           >
                             <Gift size={12} /> Gift Key
@@ -431,7 +430,7 @@ export const AdminPanel: React.FC = () => {
                         <div className="flex justify-end gap-2">
                            {user.role !== UserRole.ADMIN && (
                              <button 
-                                onClick={() => handleBlockUser(user.id, user.name)} 
+                                onClick={() => handleBlockUser(user._id, user.name)} 
                                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${
                                   user.status === 'Blocked' 
                                   ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-600 hover:text-white' 
@@ -462,7 +461,7 @@ export const AdminPanel: React.FC = () => {
        </div>
        <div className="grid grid-cols-1 gap-6">
           {feedbacks.length > 0 ? feedbacks.map(f => (
-             <div key={f.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-blood-200 transition-all group">
+             <div key={f._id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-blood-200 transition-all group">
                 <div className="flex justify-between items-start mb-4">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-400 group-hover:bg-blood-600 group-hover:text-white transition-colors">
@@ -475,8 +474,8 @@ export const AdminPanel: React.FC = () => {
                         <p className="text-[10px] text-gray-400 mt-1 font-mono uppercase">{f.date}</p>
                       </div>
                    </div>
-                   {!f.reply && replyingTo !== f.id && (
-                     <Button variant="outline" className="text-[9px] h-7 px-3 gap-2 font-black uppercase tracking-[0.1em]" onClick={() => setReplyingTo(f.id)}>
+                   {!f.reply && replyingTo !== f._id && (
+                     <Button variant="outline" className="text-[9px] h-7 px-3 gap-2 font-black uppercase tracking-[0.1em]" onClick={() => setReplyingTo(f._id)}>
                         <MessageSquare size={12} /> Reply
                      </Button>
                    )}
@@ -491,7 +490,7 @@ export const AdminPanel: React.FC = () => {
                     <p className="text-[9px] font-black text-blood-600 uppercase tracking-[0.2em] mb-1">Administrative Transmission</p>
                     <p className="text-blood-900 text-sm font-bold leading-relaxed">"{f.reply}"</p>
                   </div>
-                ) : replyingTo === f.id ? (
+                ) : replyingTo === f._id ? (
                   <div className="mt-4 space-y-3 animate-fade-in-up">
                     <textarea 
                       value={replyText}
@@ -504,7 +503,7 @@ export const AdminPanel: React.FC = () => {
                           Cancel
                        </Button>
                        <Button 
-                        onClick={() => submitReply(f.id)} 
+                        onClick={() => submitReply(f._id)} 
                         isLoading={isSubmittingReply}
                         disabled={!replyText.trim()}
                         className="text-xs px-6 gap-2 font-black uppercase tracking-widest"
@@ -643,7 +642,7 @@ export const AdminPanel: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredHospitals.length > 0 ? filteredHospitals.map(hospital => (
-            <div key={hospital.id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all group overflow-hidden relative">
+            <div key={hospital._id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all group overflow-hidden relative">
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-20 transition-all group-hover:scale-110 pointer-events-none">
                 <Building2 size={80} />
               </div>
@@ -653,7 +652,7 @@ export const AdminPanel: React.FC = () => {
                   <Building2 size={24} />
                 </div>
                 <button 
-                  onClick={() => handleDeleteHospital(hospital.id, hospital.name)}
+                  onClick={() => handleDeleteHospital(hospital._id, hospital.name)}
                   className="p-2 text-gray-300 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
                   title="Remove Facility"
                 >

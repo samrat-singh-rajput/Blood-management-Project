@@ -7,8 +7,9 @@ export enum UserRole {
 }
 
 export interface User {
-  id: string;
+  _id: string; // MongoDB Identifier
   username: string;
+  password?: string;
   role: UserRole;
   name: string;
   bloodType?: string;
@@ -22,16 +23,17 @@ export interface User {
   level?: number;
   xp?: number;
   status?: 'Active' | 'Blocked' | 'Inactive';
-  // Personalization
   accentColor?: 'blood' | 'blue' | 'green' | 'purple';
   fontSize?: 'small' | 'medium' | 'large';
   language?: 'en' | 'hi';
   timeFormat?: '12' | '24';
   dateFormat?: 'DD/MM/YYYY' | 'MM/DD/YYYY';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ChatMessage {
-  id: string;
+  _id: string;
   senderId: string;
   senderName: string;
   receiverId: string;
@@ -41,7 +43,7 @@ export interface ChatMessage {
 }
 
 export interface BloodStock {
-  id: string;
+  _id: string;
   bloodType: string;
   units: number;
   maxCapacity: number;
@@ -51,7 +53,7 @@ export interface BloodStock {
 }
 
 export interface DonationRequest {
-  id: string;
+  _id: string;
   donorName: string;
   bloodType: string;
   status: 'Pending' | 'Approved' | 'Completed' | 'Rejected';
@@ -66,7 +68,7 @@ export interface DonationRequest {
 }
 
 export interface DonorCertificate {
-  id: string;
+  _id: string;
   donorId: string;
   date: string;
   hospitalName: string;
@@ -74,7 +76,7 @@ export interface DonorCertificate {
 }
 
 export interface Feedback {
-  id: string;
+  _id: string;
   userId: string;
   userRole: string;
   message: string;
@@ -83,7 +85,7 @@ export interface Feedback {
 }
 
 export interface Hospital {
-  id: string;
+  _id: string;
   name: string;
   city: string;
   address: string;
@@ -93,18 +95,17 @@ export interface Hospital {
 }
 
 export interface EmergencyKey {
-  id: string;
+  _id: string;
   code: string;
   type: 'Gold' | 'Platinum';
   usesRemaining: number;
   issuedDate: string;
   status: 'Active' | 'Expired';
-  // Added ownerId to link keys to specific users in the storage
   ownerId?: string;
 }
 
 export interface SecurityLog {
-  id: string;
+  _id: string;
   severity: 'Low' | 'Medium' | 'High' | 'Critical';
   message: string;
   timestamp: string;
@@ -112,43 +113,20 @@ export interface SecurityLog {
 }
 
 export interface Appointment {
-  id: string;
+  _id: string;
   hospitalName: string;
   date: string;
   time: string;
   status: 'Scheduled' | 'Completed';
+  donorId: string;
 }
 
-// Added missing interface to fix build errors in components and mock services
 export interface Campaign {
-  id: string;
+  _id: string;
   title: string;
   description: string;
   date: string;
   location: string;
   imageUrl: string;
   attendees: number;
-}
-
-// Added missing interface to fix build errors in components and mock services
-export interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  locked: boolean;
-}
-
-// Added missing interface to fix build errors in components and mock services
-export interface BloodRequest {
-  id: string;
-  requesterName: string;
-  requesterType: string;
-  bloodType: string;
-  units: number;
-  urgency: 'Low' | 'Medium' | 'Critical';
-  location: string;
-  contact: string;
-  distance: string;
-  date: string;
 }

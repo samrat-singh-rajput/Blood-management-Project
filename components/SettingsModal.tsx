@@ -20,6 +20,7 @@ interface SettingsModalProps {
 
 type SettingsTab = 'profile' | 'appearance' | 'preferences' | 'security';
 
+// Completed component to ensure it returns a valid ReactNode
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
   user, onClose, onUpdate, onLogout, isDarkMode, onToggleTheme 
 }) => {
@@ -39,14 +40,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   });
   
   const [passwords, setPasswords] = useState({ old: '', new: '', confirm: '' });
-  const [showPass, setShowPass] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
-      const updated = await API.updateUserProfile(user.id, formData);
+      const updated = await API.updateUserProfile(user._id, formData);
       onUpdate(updated);
       alert("Settings updated successfully!");
     } catch (err) {
@@ -64,7 +64,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
     setIsLoading(true);
     try {
-      await API.changePassword(user.id, passwords.new);
+      await API.changePassword(user._id, passwords.new);
       setPasswords({ old: '', new: '', confirm: '' });
       alert("Password changed successfully!");
     } catch (err) {
@@ -87,14 +87,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'DELETE') return;
     if (confirm("THIS ACTION IS PERMANENT. Are you absolutely sure?")) {
-      await API.deleteAccount(user.id);
+      await API.deleteAccount(user._id);
       onLogout();
     }
   };
 
   const handleDeactivate = async () => {
     if (confirm("Deactivating your account will hide your profile from search until you log back in. Continue?")) {
-      await API.updateUserProfile(user.id, { status: 'Inactive' });
+      await API.updateUserProfile(user._id, { status: 'Inactive' });
       onLogout();
     }
   };
@@ -108,7 +108,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
                 <div className="w-24 h-24 rounded-full bg-blood-100 dark:bg-blood-900/30 flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-800 shadow-xl">
                   {formData.avatarUrl ? (
-                    <img src={formData.avatarUrl} className="w-full h-full object-cover" />
+                    <img src={formData.avatarUrl} className="w-full h-full object-cover" alt="avatar" />
                   ) : (
                     <UserIcon size={40} className="text-blood-600" />
                   )}
@@ -247,14 +247,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <form onSubmit={handleChangePassword} className="space-y-4">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2"><Lock size={12}/> Secure Passcode Update</p>
               <div className="space-y-3">
-                <input required type={showPass ? "text" : "password"} placeholder="Current Passcode" value={passwords.old} onChange={e => setPasswords({...passwords, old: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-none font-bold dark:text-white focus:ring-2 focus:ring-blood-500" />
+                <input required type="password" placeholder="Current Passcode" value={passwords.old} onChange={e => setPasswords({...passwords, old: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-none font-bold dark:text-white focus:ring-2 focus:ring-blood-500" />
                 <div className="relative">
-                  <input required type={showPass ? "text" : "password"} placeholder="New Secure Passcode" value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-none font-bold dark:text-white focus:ring-2 focus:ring-blood-500" />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+                  <input required type="password" placeholder="New Secure Passcode" value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-none font-bold dark:text-white focus:ring-2 focus:ring-blood-500" />
                 </div>
-                <input required type={showPass ? "text" : "password"} placeholder="Confirm New Passcode" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-none font-bold dark:text-white focus:ring-2 focus:ring-blood-500" />
+                <input required type="password" placeholder="Confirm New Passcode" value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-none font-bold dark:text-white focus:ring-2 focus:ring-blood-500" />
               </div>
               <Button type="submit" className="w-full py-4 text-xs uppercase font-black tracking-widest">Update Security Credentials</Button>
             </form>
@@ -265,77 +262,96 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-6 bg-red-50 dark:bg-red-900/10 rounded-[2rem] border border-red-100 dark:border-red-900/30 space-y-6">
                 <div>
                   <h4 className="font-black text-red-600 text-sm uppercase">Deactivate Presence</h4>
-                  <p className="text-xs text-gray-500 mt-1">Temporarily hide your node from the registry. You can restore access by logging in again.</p>
-                  <Button variant="outline" onClick={handleDeactivate} className="mt-4 !border-red-200 !text-red-600 hover:!bg-red-600 hover:!text-white text-[10px] uppercase font-black px-6">Deactivate Now</Button>
+                  <p className="text-xs text-gray-500 mt-1">Temporarily hide your node from the registry.</p>
+                  <Button variant="outline" onClick={handleDeactivate} className="mt-4 border-red-200 text-red-600 hover:bg-red-50">Deactivate Node</Button>
                 </div>
-
+                
                 <div className="pt-6 border-t border-red-100 dark:border-red-900/30">
-                  <h4 className="font-black text-red-600 text-sm uppercase">Purge Database Record</h4>
-                  <p className="text-xs text-gray-500 mt-1">Permanently remove all your donor history, certificates, and identity data.</p>
-                  <div className="mt-4 flex gap-2">
-                    <input type="text" placeholder="Type 'DELETE' to confirm" value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)} className="flex-1 p-3 bg-white dark:bg-gray-900 border border-red-200 dark:border-red-900/50 rounded-xl outline-none text-xs font-black text-red-600 uppercase tracking-widest" />
-                    <Button onClick={handleDeleteAccount} disabled={deleteConfirm !== 'DELETE'} className="bg-red-600 text-white text-[10px] uppercase font-black px-6 rounded-xl hover:bg-red-700">Purge Record</Button>
+                  <h4 className="font-black text-red-600 text-sm uppercase">Terminate Identity</h4>
+                  <p className="text-xs text-gray-500 mt-1 mb-4">Permanently delete all records. Type "DELETE" to confirm.</p>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Type DELETE" 
+                      value={deleteConfirm}
+                      onChange={e => setDeleteConfirm(e.target.value)}
+                      className="flex-1 p-3 bg-white dark:bg-gray-800 rounded-xl border border-red-100 dark:border-red-900/30 outline-none text-sm font-bold"
+                    />
+                    <Button 
+                      variant="danger" 
+                      onClick={handleDeleteAccount}
+                      disabled={deleteConfirm !== 'DELETE'}
+                      className="px-6"
+                    >
+                      <Trash2 size={18} />
+                    </Button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         );
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-fade-in-up">
-      <div className="bg-white dark:bg-gray-900 w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] border border-gray-100 dark:border-gray-800 transition-colors">
-        {/* Sidebar Nav */}
-        <div className="w-full md:w-64 bg-gray-50 dark:bg-gray-950/50 border-r border-gray-100 dark:border-gray-800 p-8 flex flex-col gap-2">
-          <div className="mb-8">
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Settings</h2>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Node Preferences</p>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 backdrop-blur-md bg-black/40 animate-fade-in-up">
+      <div className="bg-white dark:bg-gray-900 w-full max-w-4xl h-[90vh] md:h-[80vh] rounded-[3rem] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col md:flex-row transition-colors">
+        {/* Sidebar */}
+        <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 p-6 md:p-8 flex flex-row md:flex-col gap-2 md:gap-4 overflow-x-auto">
+          <div className="mb-8 hidden md:block">
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">System Settings</h3>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Configure Node {user._id.slice(-6)}</p>
           </div>
+          
+          {(['profile', 'appearance', 'preferences', 'security'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                activeTab === tab 
+                  ? 'bg-blood-600 text-white shadow-xl shadow-blood-500/20' 
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              {tab === 'profile' && <UserIcon size={18} />}
+              {tab === 'appearance' && <Palette size={18} />}
+              {tab === 'preferences' && <Globe size={18} />}
+              {tab === 'security' && <ShieldAlert size={18} />}
+              {tab}
+            </button>
+          ))}
 
-          <button onClick={() => setActiveTab('profile')} className={`flex items-center gap-3 p-4 rounded-2xl text-sm font-black uppercase transition-all ${activeTab === 'profile' ? 'bg-white dark:bg-gray-800 shadow-xl text-blood-600' : 'text-gray-400 hover:bg-white/50 dark:hover:bg-gray-800/50'}`}>
-            <UserIcon size={18} /> Identity
-          </button>
-          <button onClick={() => setActiveTab('appearance')} className={`flex items-center gap-3 p-4 rounded-2xl text-sm font-black uppercase transition-all ${activeTab === 'appearance' ? 'bg-white dark:bg-gray-800 shadow-xl text-blood-600' : 'text-gray-400 hover:bg-white/50 dark:hover:bg-gray-800/50'}`}>
-            <Sun size={18} /> Interface
-          </button>
-          <button onClick={() => setActiveTab('preferences')} className={`flex items-center gap-3 p-4 rounded-2xl text-sm font-black uppercase transition-all ${activeTab === 'preferences' ? 'bg-white dark:bg-gray-800 shadow-xl text-blood-600' : 'text-gray-400 hover:bg-white/50 dark:hover:bg-gray-800/50'}`}>
-            <Globe size={18} /> Regional
-          </button>
-          <button onClick={() => setActiveTab('security')} className={`flex items-center gap-3 p-4 rounded-2xl text-sm font-black uppercase transition-all ${activeTab === 'security' ? 'bg-white dark:bg-gray-800 shadow-xl text-blood-600' : 'text-gray-400 hover:bg-white/50 dark:hover:bg-gray-800/50'}`}>
-            <Lock size={18} /> Security
-          </button>
-
-          <div className="mt-auto pt-8">
-            <button onClick={onLogout} className="flex items-center gap-3 p-4 rounded-2xl text-sm font-black uppercase text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all w-full">
-              <Trash2 size={18} /> Logout
+          <div className="mt-auto hidden md:block">
+            <button 
+              onClick={onLogout}
+              className="w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-black uppercase tracking-widest text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all"
+            >
+              <Trash2 size={18} /> Exit System
             </button>
           </div>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-gray-900">
-             <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Active Database Stream</span>
-             </div>
-             <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400"><X/></button>
+        <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-900">
+          <div className="p-6 md:p-8 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+            <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{activeTab} configuration</h4>
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-blood-600 transition-colors"><X size={24} /></button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-white dark:bg-gray-900">
-             {renderTabContent()}
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+            {renderTabContent()}
           </div>
 
-          <div className="p-8 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/20 flex justify-between items-center">
-             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Changes will synchronize to all cluster nodes</p>
-             <div className="flex gap-3">
-                <Button variant="outline" onClick={onClose} className="rounded-xl px-10 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">Cancel</Button>
-                <Button onClick={handleSave} isLoading={isLoading} className="rounded-xl px-14 font-black uppercase text-xs tracking-widest shadow-xl shadow-blood-500/20">
-                  <Save size={16} className="mr-2" /> Save Config
-                </Button>
-             </div>
+          <div className="p-6 md:p-8 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-4 bg-gray-50/30 dark:bg-gray-950/30">
+            <Button variant="outline" onClick={onClose} className="rounded-2xl px-8">Close</Button>
+            {activeTab !== 'security' && (
+              <Button onClick={handleSave} isLoading={isLoading} className="rounded-2xl px-12 font-black uppercase tracking-widest shadow-xl shadow-blood-500/20">
+                <Save size={18} className="mr-2"/> Save Changes
+              </Button>
+            )}
           </div>
         </div>
       </div>

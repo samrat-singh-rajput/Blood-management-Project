@@ -1,278 +1,223 @@
 
-import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, Hospital, ChatMessage, DonorCertificate, EmergencyKey } from "../types";
-import { DB } from "./db";
-import { realtime } from "./realTimeService";
+import { db, auth } from "./firebase";
+import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, Hospital, ChatMessage, DonorCertificate, EmergencyKey, Campaign } from "../types";
 
-const delay = (ms: number = 600) => new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Cloud-Based API Service (Firebase) - Refactored for namespaced compatibility
+ */
 
 export const API = {
-  // --- AUTH ---
-  login: async (username: string, password: string, role: UserRole): Promise<User | null> => {
-    await delay(800);
-    const users = DB.getUsers();
-    const user = users.find(u => 
-      u.username.toLowerCase() === username.toLowerCase() && 
-      (u as any).password === password &&
-      u.role === role
-    );
-    if (user) {
-      if (user.status === 'Inactive') {
-        user.status = 'Active';
-        DB.saveUsers(users);
+  // --- AUTHENTICATION ---
+  login: async (username: string, pass: string, role: UserRole): Promise<User | null> => {
+    // We use username + "@bloodbank.com" as a virtual email for Firebase Auth compatibility
+    const virtualEmail = `${username.toLowerCase()}@bloodbank.com`;
+    
+    try {
+      const userCredential = await auth.signInWithEmailAndPassword(virtualEmail, pass);
+      const userDoc = await db.collection("users").doc(userCredential.user!.uid).get();
+      
+      if (!userDoc.exists) return null;
+      
+      const userData = userDoc.data() as User;
+      if (userData.role !== role) {
+        await auth.signOut();
+        throw new Error(`Unauthorized access for role: ${role}`);
       }
-      DB.addLog({ id: `log-${Date.now()}`, severity: 'Low', message: `${role} Login: ${user.username}`, timestamp: new Date().toLocaleString() });
+      
+      if (userData.status === 'Blocked') {
+        await auth.signOut();
+        throw new Error("Account is suspended by administrator.");
+      }
+      
+      return { ...userData, _id: userDoc.id };
+    } catch (error: any) {
+      console.error("Firebase Login Error:", error);
+      return null;
     }
-    return user || null;
   },
 
   register: async (userData: Partial<User & { password?: string }>): Promise<User> => {
-    await delay(1000);
-    const users = DB.getUsers();
-    if (users.some(u => u.username.toLowerCase() === (userData.username || '').toLowerCase())) {
-      throw new Error("Username already taken.");
-    }
-
-    const newUser: User = {
-      id: `u-${Date.now()}`,
-      username: userData.username || '',
-      name: userData.name || userData.username || '',
-      role: userData.role || UserRole.USER,
-      bloodType: userData.bloodType,
-      location: userData.location,
-      phone: userData.phone,
-      email: userData.email,
-      address: userData.address,
-      joinDate: new Date().toISOString().split('T')[0],
-      status: 'Active',
-      level: 1,
-      xp: 0,
-      accentColor: 'blood',
-      fontSize: 'medium',
-      language: 'en',
-      timeFormat: '12',
-      dateFormat: 'DD/MM/YYYY'
-    };
-
-    (newUser as any).password = userData.password;
-    users.push(newUser);
-    DB.saveUsers(users);
-    DB.addLog({ id: `log-${Date.now()}`, severity: 'Medium', message: `New ${newUser.role} registered: ${newUser.username}`, timestamp: new Date().toLocaleString() });
-    return newUser;
-  },
-
-  // --- USER SETTINGS & PROFILE ---
-  updateUserProfile: async (userId: string, updates: Partial<User>): Promise<User> => {
-    await delay(500);
-    const users = DB.getUsers();
-    const index = users.findIndex(u => u.id === userId);
-    if (index === -1) throw new Error("User not found");
+    if (userData.role === UserRole.ADMIN) throw new Error("Security: Administrative enrollment restricted.");
     
-    users[index] = { ...users[index], ...updates };
-    DB.saveUsers(users);
-    return users[index];
-  },
+    const virtualEmail = `${userData.username?.toLowerCase()}@bloodbank.com`;
+    
+    try {
+      // 1. Create entry in Firebase Auth
+      const userCredential = await auth.createUserWithEmailAndPassword(virtualEmail, userData.password!);
+      
+      // 2. Create Profile in Firestore
+      const newUser: User = {
+        _id: userCredential.user!.uid,
+        username: userData.username!.toLowerCase(),
+        name: userData.username!,
+        role: userData.role || UserRole.USER,
+        bloodType: userData.bloodType,
+        email: userData.email?.toLowerCase() || virtualEmail,
+        joinDate: new Date().toISOString().split('T')[0],
+        status: 'Active',
+        isVerified: true,
+        createdAt: new Date().toISOString()
+      };
 
-  changePassword: async (userId: string, newPass: string): Promise<void> => {
-    await delay(600);
-    const users = DB.getUsers();
-    const index = users.findIndex(u => u.id === userId);
-    if (index !== -1) {
-      (users[index] as any).password = newPass;
-      DB.saveUsers(users);
-      DB.addLog({ id: `log-${Date.now()}`, severity: 'High', message: `Password changed for user: ${users[index].username}`, timestamp: new Date().toLocaleString() });
+      await db.collection("users").doc(userCredential.user!.uid).set(newUser);
+
+      // 3. Log the creation
+      await db.collection("security_logs").add({
+        severity: 'Medium',
+        message: `New User Node Online: ${newUser.username} (${newUser.role})`,
+        timestamp: new Date().toLocaleString()
+      });
+
+      return newUser;
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error("Username already claimed. Please choose another.");
+      }
+      throw error;
     }
   },
 
-  deleteAccount: async (userId: string): Promise<void> => {
-    await delay(800);
-    const users = DB.getUsers();
-    const filtered = users.filter(u => u.id !== userId);
-    DB.saveUsers(filtered);
-    DB.addLog({ id: `log-${Date.now()}`, severity: 'Critical', message: `Account deleted: ${userId}`, timestamp: new Date().toLocaleString() });
+  updateUserProfile: async (userId: string, updates: Partial<User>): Promise<User> => {
+    const userRef = db.collection("users").doc(userId);
+    await userRef.update({ ...updates, updatedAt: new Date().toISOString() });
+    const updated = await userRef.get();
+    return { ...(updated.data() as User), _id: updated.id };
   },
 
-  // --- DATA FETCHING ---
   getUsers: async (): Promise<User[]> => {
-    await delay(300);
-    return DB.getUsers();
-  },
-
-  getBloodStocks: async (): Promise<BloodStock[]> => {
-    await delay(400);
-    return DB.getStocks();
+    const snap = await db.collection("users").get();
+    return snap.docs.map(d => ({ ...(d.data() as User), _id: d.id }));
   },
 
   getDonationRequests: async (): Promise<DonationRequest[]> => {
-    await delay(300);
-    return DB.getRequests();
-  },
-
-  getFeedbacks: async (): Promise<Feedback[]> => {
-    await delay(200);
-    return DB.getFeedbacks();
-  },
-
-  getSecurityLogs: async (): Promise<SecurityLog[]> => {
-    await delay(200);
-    return DB.getLogs();
+    const snap = await db.collection("requests").get();
+    return snap.docs.map(d => ({ ...(d.data() as DonationRequest), _id: d.id }));
   },
 
   getHospitals: async (): Promise<Hospital[]> => {
-    await delay(300);
-    return DB.getHospitals();
+    const snap = await db.collection("hospitals").get();
+    return snap.docs.map(d => ({ ...(d.data() as Hospital), _id: d.id }));
   },
 
-  // --- CHAT SYSTEM ---
+  getFeedbacks: async (): Promise<Feedback[]> => {
+    const snap = await db.collection("feedback").get();
+    return snap.docs.map(d => ({ ...(d.data() as Feedback), _id: d.id }));
+  },
+
+  getCampaigns: async (): Promise<Campaign[]> => {
+    const snap = await db.collection("campaigns").get();
+    return snap.docs.map(d => ({ ...(d.data() as Campaign), _id: d.id }));
+  },
+
+  sendMessage: async (msg: Omit<ChatMessage, '_id'>): Promise<void> => {
+    await db.collection("messages").add(msg);
+  },
+
   getChatHistory: async (user1Id: string, user2Id: string): Promise<ChatMessage[]> => {
-    await delay(200);
-    const chats = DB.getChats();
-    return chats.filter(c => 
-      (c.senderId === user1Id && c.receiverId === user2Id) ||
-      (c.senderId === user2Id && c.receiverId === user1Id)
-    ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const snap = await db.collection("messages").orderBy("timestamp", "asc").get();
+    const msgs = snap.docs.map(d => ({ ...(d.data() as ChatMessage), _id: d.id }));
+    return msgs.filter(m => 
+      (m.senderId === user1Id && m.receiverId === user2Id) || 
+      (m.senderId === user2Id && m.receiverId === user1Id)
+    );
   },
 
   getAllUserChats: async (userId: string): Promise<ChatMessage[]> => {
-    await delay(200);
-    const chats = DB.getChats();
-    return chats.filter(c => c.senderId === userId || c.receiverId === userId);
+    const snap = await db.collection("messages").get();
+    const msgs = snap.docs.map(d => ({ ...(d.data() as ChatMessage), _id: d.id }));
+    return msgs.filter(m => m.senderId === userId || m.receiverId === userId);
   },
 
-  sendMessage: async (msg: ChatMessage): Promise<void> => {
-    await delay(100);
-    const chats = DB.getChats();
-    chats.push(msg);
-    DB.saveChats(chats);
-    realtime.emit('NEW_CHAT_MESSAGE', msg);
+  addDonationRequest: async (req: Omit<DonationRequest, '_id'>): Promise<void> => {
+    await db.collection("requests").add(req);
   },
 
-  // --- ACTIONS ---
-  addDonationRequest: async (req: DonationRequest): Promise<void> => {
-    await delay(500);
-    const requests = DB.getRequests();
-    requests.unshift(req);
-    DB.saveRequests(requests);
-    DB.addLog({ id: `log-${Date.now()}`, severity: 'High', message: `New Request: ${req.bloodType} from ${req.donorName}`, timestamp: new Date().toLocaleString() });
-    realtime.emit('NEW_DONATION_REQUEST', req);
+  updateDonationRequestStatus: async (requestId: string, status: string): Promise<void> => {
+    await db.collection("requests").doc(requestId).update({ status });
   },
 
-  updateDonationRequestStatus: async (requestId: string, status: 'Pending' | 'Approved' | 'Completed' | 'Rejected'): Promise<void> => {
-    await delay(400);
-    const requests = DB.getRequests();
-    const index = requests.findIndex(r => r.id === requestId);
-    if (index !== -1) {
-      requests[index].status = status;
-      DB.saveRequests(requests);
-      realtime.emit('REQUEST_STATUS_UPDATED', { requestId, status });
-    }
-  },
-
-  addFeedback: async (feedback: Feedback): Promise<void> => {
-    await delay(400);
-    const feedbacks = DB.getFeedbacks();
-    feedbacks.unshift(feedback);
-    DB.saveFeedbacks(feedbacks);
-    realtime.emit('NEW_FEEDBACK', feedback);
-  },
-
-  replyToFeedback: async (feedbackId: string, reply: string): Promise<void> => {
-    await delay(400);
-    const feedbacks = DB.getFeedbacks();
-    const index = feedbacks.findIndex(f => f.id === feedbackId);
-    if (index !== -1) {
-      feedbacks[index].reply = reply;
-      DB.saveFeedbacks(feedbacks);
-      realtime.emit('FEEDBACK_REPLIED', { feedbackId, reply });
-    }
-  },
-
-  // --- HOSPITAL MANAGEMENT ---
   addHospital: async (hospital: Partial<Hospital>): Promise<void> => {
-    await delay(500);
-    const hospitals = DB.getHospitals();
-    const newHospital: Hospital = {
-      id: `hosp-${Date.now()}`,
-      name: hospital.name || 'Unnamed Hospital',
-      city: hospital.city || 'Unknown',
-      address: hospital.address || 'No Address',
-      phone: hospital.phone || 'N/A',
-      email: hospital.email || 'N/A',
-      status: 'Active'
-    };
-    hospitals.unshift(newHospital);
-    DB.saveHospitals(hospitals);
-    DB.addLog({ id: `log-${Date.now()}`, severity: 'Medium', message: `Admin added hospital: ${newHospital.name}`, timestamp: new Date().toLocaleString() });
+    await db.collection("hospitals").add({ ...hospital, status: 'Active' });
   },
 
   deleteHospital: async (hospitalId: string): Promise<void> => {
-    await delay(400);
-    const hospitals = DB.getHospitals();
-    const filtered = hospitals.filter(h => h.id !== hospitalId);
-    DB.saveHospitals(filtered);
-    DB.addLog({ id: `log-${Date.now()}`, severity: 'High', message: `Admin removed hospital ID: ${hospitalId}`, timestamp: new Date().toLocaleString() });
+    await db.collection("hospitals").doc(hospitalId).delete();
   },
 
-  // --- EMERGENCY KEYS ---
   issueEmergencyKey: async (userId: string): Promise<string> => {
-    await delay(500);
-    const keys = DB.getEmergencyKeys();
     const code = `GRANT-${Math.floor(1000 + Math.random() * 8999)}`;
-    const newKey: EmergencyKey & { ownerId: string } = {
-      id: `key-${Date.now()}`,
-      code: code,
-      type: 'Gold',
-      usesRemaining: 1,
+    const keyData = {
+      code, 
+      type: 'Gold', 
+      usesRemaining: 1, 
       issuedDate: new Date().toISOString().split('T')[0],
-      status: 'Active',
+      status: 'Active', 
       ownerId: userId
     };
-    keys.push(newKey);
-    DB.saveEmergencyKeys(keys);
-    realtime.emit('NEW_EMERGENCY_KEY', { userId, key: newKey });
+    await db.collection("emergency_keys").add(keyData);
     return code;
   },
 
   getEmergencyKeys: async (userId: string): Promise<EmergencyKey[]> => {
-    await delay(300);
-    return DB.getEmergencyKeys().filter((k: any) => k.ownerId === userId);
+    const snap = await db.collection("emergency_keys").where("ownerId", "==", userId).get();
+    return snap.docs.map(d => ({ ...(d.data() as EmergencyKey), _id: d.id }));
   },
 
-  // --- MISC ---
+  getBloodStocks: async (): Promise<BloodStock[]> => {
+    const snap = await db.collection("stocks").get();
+    return snap.docs.map(d => ({ ...(d.data() as BloodStock), _id: d.id }));
+  },
+
+  getSecurityLogs: async (): Promise<SecurityLog[]> => {
+    const snap = await db.collection("security_logs").orderBy("timestamp", "desc").get();
+    return snap.docs.map(d => ({ ...(d.data() as SecurityLog), _id: d.id }));
+  },
+
+  addFeedback: async (feedback: Omit<Feedback, '_id'>): Promise<void> => {
+    await db.collection("feedback").add(feedback);
+  },
+
+  replyToFeedback: async (feedbackId: string, reply: string): Promise<void> => {
+    await db.collection("feedback").doc(feedbackId).update({ reply });
+  },
+
   toggleUserStatus: async (userId: string): Promise<string | null> => {
-    await delay(400);
-    const users = DB.getUsers();
-    const user = users.find(u => u.id === userId);
-    if (user) {
-      user.status = user.status === 'Active' ? 'Blocked' : 'Active';
-      DB.saveUsers(users);
-      return user.status;
-    }
-    return null;
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) return null;
+    const newStatus = userSnap.data()!.status === 'Active' ? 'Blocked' : 'Active';
+    await userRef.update({ status: newStatus });
+    return newStatus;
   },
 
   getCertificates: async (donorId: string): Promise<DonorCertificate[]> => {
-    await delay(400);
-    return DB.getCertificates().filter(c => c.donorId === donorId);
+    const snap = await db.collection("certificates").where("donorId", "==", donorId).get();
+    return snap.docs.map(d => ({ ...(d.data() as DonorCertificate), _id: d.id }));
   },
 
-  addCertificate: async (cert: DonorCertificate): Promise<void> => {
-    await delay(600);
-    const certs = DB.getCertificates();
-    certs.unshift(cert);
-    DB.saveCertificates(certs);
+  addCertificate: async (cert: Omit<DonorCertificate, '_id'>): Promise<void> => {
+    await db.collection("certificates").add(cert);
   },
 
   getAppointments: async (userId: string): Promise<Appointment[]> => {
-    await delay(300);
-    const apps = DB.getAppointments();
-    return apps.filter(a => (a as any).donorId === userId);
+    const snap = await db.collection("appointments").where("donorId", "==", userId).get();
+    return snap.docs.map(d => ({ ...(d.data() as Appointment), _id: d.id }));
   },
 
-  scheduleAppointment: async (app: Appointment & { donorId: string }): Promise<void> => {
-    await delay(500);
-    const apps = DB.getAppointments();
-    apps.push(app);
-    DB.saveAppointments(apps);
-    realtime.emit('NEW_APPOINTMENT', app);
+  scheduleAppointment: async (app: Omit<Appointment, '_id'>): Promise<void> => {
+    await db.collection("appointments").add(app);
+  },
+
+  changePassword: async (userId: string, newPass: string): Promise<void> => {
+    if (auth.currentUser) {
+      await auth.currentUser.updatePassword(newPass);
+    }
+  },
+
+  deleteAccount: async (userId: string): Promise<void> => {
+    await db.collection("users").doc(userId).update({ status: 'Inactive' });
+    if (auth.currentUser) {
+       // Identity deactivation handled via status flag
+    }
   }
 };

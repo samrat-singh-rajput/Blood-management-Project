@@ -56,39 +56,20 @@
       }
     </script>
     <style>
-      /* Base personalization support */
-      :root {
-        --accent-color: #e11d48;
-      }
-
+      :root { --accent-color: #e11d48; }
       .accent-blue { --accent-color: #2563eb; }
       .accent-green { --accent-color: #16a34a; }
       .accent-purple { --accent-color: #9333ea; }
       .accent-blood { --accent-color: #e11d48; }
-
       .text-accent { color: var(--accent-color); }
       .bg-accent { background-color: var(--accent-color); }
       .border-accent { border-color: var(--accent-color); }
       .ring-accent { --tw-ring-color: var(--accent-color); }
-
-      /* Custom Scrollbar */
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: #f1f1f1; }
       ::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 4px; }
-
-      .glass {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-      }
-      
-      .glass-dark {
-        background: rgba(17, 24, 39, 0.8);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
+      .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+      .glass-dark { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
     </style>
   <script type="importmap">
 {
@@ -97,7 +78,11 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/": "https://esm.sh/firebase@^12.9.0/"
   }
 }
 </script>

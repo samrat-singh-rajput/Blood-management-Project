@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Droplet, Phone, MessageCircle, Activity, Users, Info, Send, Clock, CheckCircle2, MessageSquareText, ShieldCheck, ArrowLeft, PlusCircle, AlertCircle, Building2, User as UserIcon, Database } from 'lucide-react';
 import { User, Feedback, UserRole, DonationRequest, ChatMessage } from '../types';
@@ -52,7 +51,7 @@ export const UserPanel: React.FC = () => {
 
   useEffect(() => {
     if (activeChatPartner) {
-      loadChatHistory(activeChatPartner.id);
+      loadChatHistory(activeChatPartner._id);
     }
   }, [activeChatPartner]);
 
@@ -75,14 +74,14 @@ export const UserPanel: React.FC = () => {
 
   const loadRecentChats = async () => {
     try {
-      const allChats = await API.getAllUserChats(currentUser.id);
+      const allChats = await API.getAllUserChats(currentUser._id);
       const partnersMap = new Map<string, {user: User, lastMsg: string}>();
       const allUsers = await API.getUsers();
 
       allChats.reverse().forEach(c => {
-        const partnerId = c.senderId === currentUser.id ? c.receiverId : c.senderId;
+        const partnerId = c.senderId === currentUser._id ? c.receiverId : c.senderId;
         if (!partnersMap.has(partnerId)) {
-          const partner = allUsers.find(u => u.id === partnerId);
+          const partner = allUsers.find(u => u._id === partnerId);
           if (partner) {
             partnersMap.set(partnerId, { user: partner, lastMsg: c.text });
           }
@@ -95,7 +94,7 @@ export const UserPanel: React.FC = () => {
   };
 
   const loadChatHistory = async (partnerId: string) => {
-    const history = await API.getChatHistory(currentUser.id, partnerId);
+    const history = await API.getChatHistory(currentUser._id, partnerId);
     setChatHistory(history);
   };
 
@@ -103,11 +102,10 @@ export const UserPanel: React.FC = () => {
     e.preventDefault();
     if (!chatInput.trim() || !activeChatPartner) return;
 
-    const newMsg: ChatMessage = {
-      id: `chat-${Date.now()}`,
-      senderId: currentUser.id,
+    const newMsg: Omit<ChatMessage, '_id'> = {
+      senderId: currentUser._id,
       senderName: currentUser.name,
-      receiverId: activeChatPartner.id,
+      receiverId: activeChatPartner._id,
       receiverName: activeChatPartner.name,
       text: chatInput.trim(),
       timestamp: new Date().toISOString()
@@ -115,7 +113,7 @@ export const UserPanel: React.FC = () => {
 
     await API.sendMessage(newMsg);
     setChatInput('');
-    loadChatHistory(activeChatPartner.id);
+    loadChatHistory(activeChatPartner._id);
     loadRecentChats();
   };
 
@@ -127,7 +125,7 @@ export const UserPanel: React.FC = () => {
   const loadMyFeedbacks = async () => {
     try {
       const allFeedbacks = await API.getFeedbacks();
-      setUserFeedbacks(allFeedbacks.filter(f => f.userId === currentUser.id));
+      setUserFeedbacks(allFeedbacks.filter(f => f.userId === currentUser._id));
     } catch (error) {
       console.error("Failed to load feedbacks", error);
     }
@@ -160,8 +158,7 @@ export const UserPanel: React.FC = () => {
     e.preventDefault();
     setIsSubmittingRequest(true);
     try {
-      const req: DonationRequest = {
-        id: `req-${Date.now()}`,
+      const req: Omit<DonationRequest, '_id'> = {
         donorName: requestForm.patientName,
         bloodType: requestForm.bloodType,
         status: 'Pending',
@@ -188,9 +185,8 @@ export const UserPanel: React.FC = () => {
 
     setIsSendingFeedback(true);
     try {
-      const f: Feedback = {
-        id: `f-${Date.now()}`,
-        userId: currentUser.id,
+      const f: Omit<Feedback, '_id'> = {
+        userId: currentUser._id,
         userRole: currentUser.role,
         message: feedbackText.trim(),
         date: new Date().toLocaleString()
@@ -219,9 +215,9 @@ export const UserPanel: React.FC = () => {
              {recentChats.length > 0 ? (
                recentChats.map(chat => (
                  <button 
-                  key={chat.user.id}
+                  key={chat.user._id}
                   onClick={() => setActiveChatPartner(chat.user)}
-                  className={`w-full p-5 text-left flex items-center gap-4 transition-all hover:bg-white dark:hover:bg-gray-800 border-b border-gray-50 dark:border-gray-800 ${activeChatPartner?.id === chat.user.id ? 'bg-white dark:bg-gray-800 shadow-inner' : ''}`}
+                  className={`w-full p-5 text-left flex items-center gap-4 transition-all hover:bg-white dark:hover:bg-gray-800 border-b border-gray-50 dark:border-gray-800 ${activeChatPartner?._id === chat.user._id ? 'bg-white dark:bg-gray-800 shadow-inner' : ''}`}
                  >
                     <div className="w-12 h-12 rounded-xl bg-blood-100 dark:bg-blood-900/30 text-blood-700 dark:text-blood-400 flex items-center justify-center font-black text-lg">
                       {chat.user.name.charAt(0)}
@@ -279,10 +275,10 @@ export const UserPanel: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 dark:bg-gray-950/30 custom-scrollbar">
                    {chatHistory.map(msg => (
-                     <div key={msg.id} className={`flex ${msg.senderId === currentUser.id ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm text-sm ${msg.senderId === currentUser.id ? 'bg-blood-600 text-white rounded-tr-none shadow-blood-500/10' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
+                     <div key={msg._id} className={`flex ${msg.senderId === currentUser._id ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm text-sm ${msg.senderId === currentUser._id ? 'bg-blood-600 text-white rounded-tr-none shadow-blood-500/10' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
                            <p className="leading-relaxed font-medium text-left">{msg.text}</p>
-                           <p className={`text-[9px] mt-2 font-bold uppercase tracking-tighter ${msg.senderId === currentUser.id ? 'text-white/60 text-right' : 'text-gray-400'}`}>
+                           <p className={`text-[9px] mt-2 font-bold uppercase tracking-tighter ${msg.senderId === currentUser._id ? 'text-white/60 text-right' : 'text-gray-400'}`}>
                               {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                            </p>
                         </div>
@@ -371,7 +367,7 @@ export const UserPanel: React.FC = () => {
            ) : searchResults.length > 0 ? (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-fade-in-up">
                {searchResults.map(donor => (
-                 <div key={donor.id} className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] shadow-sm hover:shadow-2xl transition-all border border-gray-100 dark:border-gray-700 group relative overflow-hidden">
+                 <div key={donor._id} className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] shadow-sm hover:shadow-2xl transition-all border border-gray-100 dark:border-gray-700 group relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity dark:text-white">
                       <Droplet size={60} />
                     </div>
@@ -612,7 +608,7 @@ export const UserPanel: React.FC = () => {
                     </tr>
                   ) : allDonors.length > 0 ? (
                     allDonors.map(donor => (
-                      <tr key={donor.id} className="hover:bg-gray-50/80 dark:hover:bg-white/[0.02] transition-colors group">
+                      <tr key={donor._id} className="hover:bg-gray-50/80 dark:hover:bg-white/[0.02] transition-colors group">
                         <td className="p-5">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-gray-400 group-hover:bg-blood-600 group-hover:text-white transition-all">
@@ -723,7 +719,7 @@ export const UserPanel: React.FC = () => {
               <div className="flex-1 overflow-y-auto space-y-4 max-h-[400px] pr-2 custom-scrollbar">
                 {userFeedbacks.length > 0 ? (
                   userFeedbacks.map(f => (
-                    <div key={f.id} className="p-5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/30 space-y-3 text-left">
+                    <div key={f._id} className="p-5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/30 space-y-3 text-left">
                       <div className="flex justify-between items-start">
                         <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">{f.date}</span>
                         {f.reply ? (

@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { Heart, Activity, Users, ChevronRight, Info, Droplet, Calendar, MapPin, ShieldCheck, Phone, Mail } from 'lucide-react';
 import { Button } from './Button';
-import { MockBackend } from '../services/mockBackend';
+import { API } from '../services/api';
 import { Campaign } from '../types';
 
 interface LandingPageProps {
@@ -14,7 +13,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const [stats, setStats] = useState({ donors: 0, lives: 0, hospitals: 0 });
 
   useEffect(() => {
-    setCampaigns(MockBackend.getCampaigns());
+    const loadCampaigns = async () => {
+      const data = await API.getCampaigns();
+      setCampaigns(data);
+    };
+    loadCampaigns();
     
     // Animate stats on mount
     const interval = setInterval(() => {
@@ -129,7 +132,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {campaigns.map((campaign) => (
-              <div key={campaign.id} className="group relative bg-white rounded-[2.5rem] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 cursor-pointer hover:-translate-y-2" onClick={() => showFeatureAlert(`Event Details: ${campaign.title}`)}>
+              <div key={campaign._id} className="group relative bg-white rounded-[2.5rem] overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 cursor-pointer hover:-translate-y-2" onClick={() => showFeatureAlert(`Event Details: ${campaign.title}`)}>
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors z-10"></div>
                 <img src={campaign.imageUrl} alt={campaign.title} className="w-full h-96 object-cover group-hover:scale-110 transition-transform duration-[1.5s]" />
                 

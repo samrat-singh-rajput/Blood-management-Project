@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Heart, Calendar, CheckCircle, Lock, MapPin, Award, Clock, CreditCard, Share2, FileText, Upload, Eye, Activity, Trophy, Building2, User as UserIcon, Users, ArrowRight, AlertCircle, Search, Phone, MessageCircle, X, Key, UserCheck, Send, Droplet, Plus, Sparkles, Loader2, Database, Copy, ExternalLink, ShieldAlert } from 'lucide-react';
-import { User, Achievement, Appointment, BloodRequest, DonorCertificate, EmergencyKey, DonationRequest, ChatMessage, UserRole } from '../types';
+import { User, Appointment, DonorCertificate, EmergencyKey, DonationRequest, ChatMessage, UserRole } from '../types';
 import { API } from '../services/api';
 import { Button } from './Button';
 import { getHealthTips, analyzeMedicalImage } from '../services/geminiService';
@@ -63,16 +62,16 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const refreshKeys = async () => {
-    const myKeys = await API.getEmergencyKeys(user.id);
+    const myKeys = await API.getEmergencyKeys(user._id);
     setEmergencyKeys(myKeys);
   };
 
   useEffect(() => {
     const loadData = async () => {
       setHealthTips(await getHealthTips('Donor'));
-      const apps = await API.getAppointments(user.id);
+      const apps = await API.getAppointments(user._id);
       setAppointments(apps);
-      const myCerts = await API.getCertificates(user.id);
+      const myCerts = await API.getCertificates(user._id);
       setCertificates(myCerts);
       await refreshKeys();
       loadRecentChats();
@@ -81,17 +80,17 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
 
     // Listen for new emergency keys issued by admin
     const handleNewKey = (data: { userId: string, key: EmergencyKey }) => {
-      if (data.userId === user.id) {
+      if (data.userId === user._id) {
         setEmergencyKeys(prev => [data.key, ...prev]);
       }
     };
     realtime.on('NEW_EMERGENCY_KEY', handleNewKey);
     return () => realtime.off('NEW_EMERGENCY_KEY', handleNewKey);
-  }, [user.id]);
+  }, [user._id]);
 
   useEffect(() => {
     if (activeChatPartner) {
-      loadChatHistory(activeChatPartner.id);
+      loadChatHistory(activeChatPartner._id);
     }
   }, [activeChatPartner]);
 
@@ -106,7 +105,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
       const allUsers = await API.getUsers();
       // Filter users (excluding self and admins) by blood type and city
       const results = allUsers.filter(u => {
-        if (u.id === user.id) return false;
+        if (u._id === user._id) return false;
         if (u.role === UserRole.ADMIN) return false;
         const typeMatch = searchBloodType === 'All' || u.bloodType === searchBloodType;
         const cityMatch = !searchCity || (u.location && u.location.toLowerCase().includes(searchCity.toLowerCase()));
@@ -120,14 +119,14 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
 
   const loadRecentChats = async () => {
     try {
-      const allChats = await API.getAllUserChats(user.id);
+      const allChats = await API.getAllUserChats(user._id);
       const partnersMap = new Map<string, {user: User, lastMsg: string}>();
       const allUsers = await API.getUsers();
 
       allChats.reverse().forEach(c => {
-        const partnerId = c.senderId === user.id ? c.receiverId : c.senderId;
+        const partnerId = c.senderId === user._id ? c.receiverId : c.senderId;
         if (!partnersMap.has(partnerId)) {
-          const partner = allUsers.find(u => u.id === partnerId);
+          const partner = allUsers.find(u => u._id === partnerId);
           if (partner) {
             partnersMap.set(partnerId, { user: partner, lastMsg: c.text });
           }
@@ -140,7 +139,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
   };
 
   const loadChatHistory = async (partnerId: string) => {
-    const history = await API.getChatHistory(user.id, partnerId);
+    const history = await API.getChatHistory(user._id, partnerId);
     setChatHistory(history);
   };
 
@@ -148,11 +147,10 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
     e.preventDefault();
     if (!chatInput.trim() || !activeChatPartner) return;
 
-    const newMsg: ChatMessage = {
-      id: `chat-${Date.now()}`,
-      senderId: user.id,
+    const newMsg: Omit<ChatMessage, '_id'> = {
+      senderId: user._id,
       senderName: user.name,
-      receiverId: activeChatPartner.id,
+      receiverId: activeChatPartner._id,
       receiverName: activeChatPartner.name,
       text: chatInput.trim(),
       timestamp: new Date().toISOString()
@@ -160,7 +158,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
 
     await API.sendMessage(newMsg);
     setChatInput('');
-    loadChatHistory(activeChatPartner.id);
+    loadChatHistory(activeChatPartner._id);
     loadRecentChats();
   };
 
@@ -174,18 +172,19 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
     if (!showAppointmentModal) return;
     setIsBooking(true);
     try {
-      const app: Appointment & { donorId: string } = {
-        id: `app-${Date.now()}`,
+      const app: Omit<Appointment, '_id'> = {
         hospitalName: `Local Medical Center (For ${showAppointmentModal.name})`,
         date: appointmentDate,
         time: appointmentTime,
         status: 'Scheduled',
-        donorId: user.id
+        donorId: user._id
       };
       await API.scheduleAppointment(app);
       
       // Update local state to show immediately in Overview
-      setAppointments(prev => [app, ...prev]);
+      // For immediate display, we simulate the _id for the new item.
+      const displayApp = { ...app, _id: `temp-${Date.now()}` } as Appointment;
+      setAppointments(prev => [displayApp, ...prev]);
       setShowAppointmentModal(null);
       
       alert(`Donation Appointment with ${showAppointmentModal.name} has been scheduled.`);
@@ -200,8 +199,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
     if (!donationForm.isMedicallyFit) return;
     setIsSubmittingDonation(true);
     try {
-      const reg: DonationRequest = {
-        id: `don-${Date.now()}`,
+      const reg: Omit<DonationRequest, '_id'> = {
         donorName: donationForm.username,
         bloodType: donationForm.bloodType,
         status: 'Pending',
@@ -256,15 +254,15 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
     if (!newCert.hospitalName || !newCert.imageUrl) return;
     setIsSavingCert(true);
     try {
-      const cert: DonorCertificate = {
-        id: `cert-${Date.now()}`,
-        donorId: user.id,
+      const cert: Omit<DonorCertificate, '_id'> = {
+        donorId: user._id,
         date: newCert.date || new Date().toISOString().split('T')[0],
         hospitalName: newCert.hospitalName,
         imageUrl: newCert.imageUrl
       };
       await API.addCertificate(cert);
-      setCertificates(prev => [cert, ...prev]);
+      const displayCert = { ...cert, _id: `temp-cert-${Date.now()}` } as DonorCertificate;
+      setCertificates(prev => [displayCert, ...prev]);
       setShowAddCert(false);
       setNewCert({ hospitalName: '', date: '', imageUrl: '' });
       alert("Medical Certificate registered successfully.");
@@ -290,7 +288,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
                  <div className="flex justify-between items-start">
                    <div className="text-left">
                      <p className="text-xs uppercase tracking-widest opacity-70 mb-1">Blood Bank Member</p>
-                     <h3 className="font-bold text-xl tracking-wider flex items-center gap-2"><CreditCard size={20} /> {user.id.toUpperCase()}</h3>
+                     <h3 className="font-bold text-xl tracking-wider flex items-center gap-2"><CreditCard size={20} /> {user._id.toUpperCase()}</h3>
                    </div>
                    {isVerified ? <CheckCircle className="text-green-400" /> : <Lock className="text-white/50" />}
                  </div>
@@ -371,7 +369,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
                </div>
                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {appointments.length > 0 ? appointments.map(app => (
-                    <div key={app.id} className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex justify-between items-center group hover:border-blood-200 transition-all">
+                    <div key={app._id} className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex justify-between items-center group hover:border-blood-200 transition-all">
                        <div className="flex gap-4 items-center">
                           <div className="p-3 bg-white dark:bg-gray-900 rounded-xl shadow-sm group-hover:scale-110 transition-transform">
                              <Building2 size={24} className="text-blood-600" />
@@ -445,7 +443,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
              ) : searchResults.length > 0 ? (
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {searchResults.map(target => (
-                   <div key={target.id} className="bg-white dark:bg-gray-950 p-6 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-800 transition-all hover:scale-[1.02] flex flex-col items-start relative overflow-hidden group">
+                   <div key={target._id} className="bg-white dark:bg-gray-950 p-6 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-800 transition-all hover:scale-[1.02] flex flex-col items-start relative overflow-hidden group">
                       <div className="absolute -top-10 -right-10 w-32 h-32 bg-blood-50 dark:bg-blood-900/10 rounded-full blur-2xl opacity-50 group-hover:scale-125 transition-transform"></div>
                       
                       <div className="flex items-center gap-4 mb-6">
@@ -618,7 +616,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {certificates.length > 0 ? (
             certificates.map(cert => (
-              <div key={cert.id} className="bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all border border-gray-100 dark:border-gray-800 group overflow-hidden relative text-left">
+              <div key={cert._id} className="bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all border border-gray-100 dark:border-gray-800 group overflow-hidden relative text-left">
                  <div className="aspect-video w-full rounded-2xl overflow-hidden mb-4 relative shadow-inner">
                     <img src={cert.imageUrl} alt="Certificate" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     <div className="absolute top-3 right-3">
@@ -670,7 +668,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {emergencyKeys.length > 0 ? (
             emergencyKeys.map(key => (
-              <div key={key.id} className="relative group overflow-hidden bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-2xl hover:border-blood-200">
+              <div key={key._id} className="relative group overflow-hidden bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-2xl hover:border-blood-200">
                 {/* Background Pattern */}
                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
                   <Key size={120} />
@@ -754,9 +752,9 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
              {recentChats.length > 0 ? (
                recentChats.map(chat => (
                  <button 
-                  key={chat.user.id}
+                  key={chat.user._id}
                   onClick={() => setActiveChatPartner(chat.user)}
-                  className={`w-full p-5 text-left flex items-center gap-4 transition-all hover:bg-white dark:hover:bg-gray-800 border-b border-gray-50 dark:border-gray-800 ${activeChatPartner?.id === chat.user.id ? 'bg-white dark:bg-gray-800 shadow-inner' : ''}`}
+                  className={`w-full p-5 text-left flex items-center gap-4 transition-all hover:bg-white dark:hover:bg-gray-800 border-b border-gray-50 dark:border-gray-800 ${activeChatPartner?._id === chat.user._id ? 'bg-white dark:bg-gray-800 shadow-inner' : ''}`}
                  >
                     <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center font-black text-lg">
                       {chat.user.name.charAt(0)}
@@ -788,10 +786,10 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 dark:bg-gray-950/30 custom-scrollbar">
                    {chatHistory.map(msg => (
-                     <div key={msg.id} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm text-sm ${msg.senderId === user.id ? 'bg-blood-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
+                     <div key={msg._id} className={`flex ${msg.senderId === user._id ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm text-sm ${msg.senderId === user._id ? 'bg-blood-600 text-white rounded-tr-none' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
                            <p className="leading-relaxed font-medium text-left">{msg.text}</p>
-                           <p className={`text-[9px] mt-2 font-bold uppercase tracking-tighter ${msg.senderId === user.id ? 'text-white/60 text-right' : 'text-gray-400'}`}>
+                           <p className={`text-[9px] mt-2 font-bold uppercase tracking-tighter ${msg.senderId === user._id ? 'text-white/60 text-right' : 'text-gray-400'}`}>
                               {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                            </p>
                         </div>
