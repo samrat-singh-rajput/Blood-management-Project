@@ -1,7 +1,7 @@
+
 <?php
 /**
- * Blood Bank API - XAMPP Backend
- * Handles secure multi-step registration with OTP.
+ * Blood Bank API - Professional XAMPP Backend
  */
 
 header("Access-Control-Allow-Origin: *");
@@ -10,11 +10,6 @@ header("Access-Control-Allow-Headers: Content-Type");
 header("Content-Type: application/json; charset=UTF-8");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit();
-
-// Note: To use PHPMailer, you must run: composer require phpmailer/phpmailer
-// require 'vendor/autoload.php';
-// use PHPMailer\PHPMailer\PHPMailer;
-// use PHPMailer\PHPMailer\Exception;
 
 class Database {
     private $host = 'localhost';
@@ -57,8 +52,7 @@ class BloodBankAPI {
     public function handleRequest($action) {
         switch ($action) {
             case 'login': $this->login(); break;
-            case 'send_signup_otp': $this->sendSignupOtp(); break;
-            case 'verify_signup_otp': $this->verifySignupOtp(); break;
+            case 'check_email': $this->checkEmail(); break;
             case 'complete_signup': $this->completeSignup(); break;
             case 'get_users': $this->getUsers(); break;
             case 'get_requests': $this->getRequests(); break;
@@ -68,105 +62,6 @@ class BloodBankAPI {
             case 'add_request': $this->addRequest(); break;
             case 'add_feedback': $this->addFeedback(); break;
             default: echo json_encode(["error" => "Invalid Action"]);
-        }
-    }
-
-    private function sendSignupOtp() {
-        $email = strtolower($this->input['email'] ?? '');
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            echo json_encode(["error" => "Invalid email format"]); return;
-        }
-
-        // Check if email exists in users
-        $res = $this->db->query("SELECT id FROM users WHERE email=?", [$email], "s");
-        if ($res->num_rows > 0) {
-            echo json_encode(["error" => "Email already registered"]); return;
-        }
-
-        $otp = sprintf("%06d", mt_rand(1, 999999));
-        $expiry = date('Y-m-d H:i:s', strtotime('+5 minutes'));
-
-        $this->db->execute("INSERT INTO email_otp (email, otp, expiry_time) VALUES (?, ?, ?)", [$email, $otp, $expiry], "sss");
-
-        // PHPMailer logic placeholder
-        $mailSent = $this->mockSendEmail($email, $otp);
-
-        if ($mailSent) {
-            echo json_encode(["success" => true, "message" => "OTP sent to your email", "debug_otp" => $otp]);
-        } else {
-            echo json_encode(["error" => "Failed to send email"]);
-        }
-    }
-
-    private function mockSendEmail($email, $otp) {
-        /*
-        PHPMailer Implementation Example:
-        
-        $mail = new PHPMailer(true);
-        try {
-            $mail->isSMTP();
-            $mail->Host = 'smtp.gmail.com';
-            $mail->SMTPAuth = true;
-            $mail->Username = 'your-email@gmail.com';
-            $mail->Password = 'your-app-password';
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port = 587;
-
-            $mail->setFrom('system@bloodbank.com', 'Blood Bank System');
-            $mail->addAddress($email);
-
-            $mail->isHTML(true);
-            $mail->Subject = 'Your Signup Verification Code';
-            $mail->Body    = "Your 6-digit verification code is: <b>$otp</b>. It expires in 5 minutes.";
-            
-            $mail->send();
-            return true;
-        } catch (Exception $e) {
-            return false;
-        }
-        */
-        return true; // Simulating success for this demo
-    }
-
-    private function verifySignupOtp() {
-        $email = strtolower($this->input['email'] ?? '');
-        $otp = $this->input['otp'] ?? '';
-
-        $res = $this->db->query("SELECT id FROM email_otp WHERE email=? AND otp=? AND used_flag=0 AND expiry_time > NOW() ORDER BY id DESC LIMIT 1", [$email, $otp], "ss");
-        
-        if ($res->num_rows > 0) {
-            $row = $res->fetch_assoc();
-            $this->db->execute("UPDATE email_otp SET used_flag=1 WHERE id=?", [$row['id']], "i");
-            echo json_encode(["success" => true, "message" => "Email verified"]);
-        } else {
-            echo json_encode(["error" => "Invalid or expired OTP"]);
-        }
-    }
-
-    private function completeSignup() {
-        $email = strtolower($this->input['email'] ?? '');
-        $user = $this->input['username'] ?? '';
-        $pass = password_hash($this->input['password'] ?? '', PASSWORD_DEFAULT);
-        $role = $this->input['role'] ?? 'USER';
-        $name = $this->input['name'] ?? $user;
-        $id = uniqid('BB_');
-        $jd = date('Y-m-d');
-
-        // Check username uniqueness
-        $check = $this->db->query("SELECT id FROM users WHERE username=?", [$user], "s");
-        if ($check->num_rows > 0) {
-            echo json_encode(["error" => "Username already taken"]); return;
-        }
-
-        $sql = "INSERT INTO users (id, username, password, role, name, email, email_verified, joinDate) VALUES (?,?,?,?,?,?,1,?)";
-        if ($this->db->execute($sql, [$id, $user, $pass, $role, $name, $email, $jd], "sssssss")) {
-            $res = $this->db->query("SELECT * FROM users WHERE id=?", [$id], "s");
-            $userData = $res->fetch_assoc();
-            $userData['_id'] = $userData['id'];
-            unset($userData['password']);
-            echo json_encode(["user" => $userData]);
-        } else {
-            echo json_encode(["error" => "Registration finalization failed"]);
         }
     }
 
@@ -184,6 +79,43 @@ class BloodBankAPI {
             echo json_encode(["user" => $user]);
         } else {
             echo json_encode(["error" => "Invalid credentials or role mismatch"]);
+        }
+    }
+
+    private function checkEmail() {
+        $email = strtolower($this->input['email'] ?? '');
+        $res = $this->db->query("SELECT id FROM users WHERE email=?", [$email], "s");
+        if ($res->num_rows > 0) {
+            echo json_encode(["error" => "Email already registered. Please log in."]);
+        } else {
+            echo json_encode(["success" => true, "message" => "Email available"]);
+        }
+    }
+
+    private function completeSignup() {
+        $email = strtolower($this->input['email'] ?? '');
+        $user = $this->input['username'] ?? '';
+        $pass = password_hash($this->input['password'] ?? '', PASSWORD_DEFAULT);
+        $role = $this->input['role'] ?? 'USER';
+        $name = $this->input['name'] ?? $user;
+        $id = uniqid('BB_');
+        $jd = date('Y-m-d');
+
+        // Final check for duplicates
+        $check = $this->db->query("SELECT id FROM users WHERE username=? OR email=?", [$user, $email], "ss");
+        if ($check->num_rows > 0) {
+            echo json_encode(["error" => "Identity Conflict: Username or Email taken."]); return;
+        }
+
+        $sql = "INSERT INTO users (id, username, password, role, name, email, joinDate, status) VALUES (?,?,?,?,?,?,?,'Active')";
+        if ($this->db->execute($sql, [$id, $user, $pass, $role, $name, $email, $jd], "sssssss")) {
+            $res = $this->db->query("SELECT * FROM users WHERE id=?", [$id], "s");
+            $userData = $res->fetch_assoc();
+            $userData['_id'] = $userData['id'];
+            unset($userData['password']);
+            echo json_encode(["user" => $userData]);
+        } else {
+            echo json_encode(["error" => "MySQL Storage Error."]);
         }
     }
 

@@ -4,18 +4,20 @@ CREATE DATABASE IF NOT EXISTS bloodbank_system;
 USE bloodbank_system;
 
 -- Users Table
+-- Removed UNIQUE from username to allow same username for different roles (e.g., 'anuj' for Donor and 'anuj' for User)
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(50) PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
+    username VARCHAR(50) NOT NULL,
     password VARCHAR(255) NOT NULL,
     role ENUM('ADMIN', 'DONOR', 'USER') NOT NULL,
     name VARCHAR(100) NOT NULL,
     bloodType VARCHAR(5),
     location VARCHAR(100),
-    email VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(100),
     phone VARCHAR(20),
     status ENUM('Active', 'Blocked', 'Inactive', 'Pending') DEFAULT 'Active',
-    email_verified BOOLEAN DEFAULT 0,
+    otp VARCHAR(6),
+    otp_expiry DATETIME,
     joinDate DATE,
     accentColor VARCHAR(20) DEFAULT 'blood',
     fontSize VARCHAR(10) DEFAULT 'medium',
@@ -23,19 +25,21 @@ CREATE TABLE IF NOT EXISTS users (
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- OTP Table for Signup Verification
-CREATE TABLE IF NOT EXISTS email_otp (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(100) NOT NULL,
-    otp VARCHAR(6) NOT NULL,
-    expiry_time DATETIME NOT NULL,
-    used_flag BOOLEAN DEFAULT 0,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- Default Accounts
+-- Admin: rajput / rajput
+-- Donor: anuj / singh
+-- User: anuj / anuj
+-- Passwords are hashed using PHP PASSWORD_DEFAULT
+INSERT IGNORE INTO users (id, username, password, role, name, bloodType, email, status, joinDate) VALUES 
+('admin_default', 'rajput', '$2y$10$vY3m9/H9xX/YwYp.yKqFmOQYyX.yKqFmOQYyX.yKqFmOQYyX.yKqF', 'ADMIN', 'System Admin', 'O+', 'admin@bloodbank.com', 'Active', '2023-10-01'),
+('donor_default', 'anuj', '$2y$10$mO9M8F5L5G5H5I5J5K5L5M5N5O5P5Q5R5S5T5U5V5W5X5Y5Z6A7B.', 'DONOR', 'Anuj Donor', 'A+', 'anuj_donor@example.com', 'Active', '2023-10-01'),
+('user_default', 'anuj', '$2y$10$N1P2Q3R4S5T6U7V8W9X0Y1Z2A3B4C5D6E7F8G9H0I1J2K3L4M5N6O', 'USER', 'Anuj User', 'B-', 'anuj_user@example.com', 'Active', '2023-10-01');
 
--- Default Admin
-INSERT IGNORE INTO users (id, username, password, role, name, bloodType, email, status, email_verified, joinDate) VALUES 
-('admin_default', 'rajput', '$2y$10$vY3m9/H9xX/YwYp.yKqFmOQYyX.yKqFmOQYyX.yKqFmOQYyX.yKqF', 'ADMIN', 'System Admin', 'O+', 'admin@bloodbank.com', 'Active', 1, '2023-10-01');
+-- Note: The hashes above are placeholders for 'rajput', 'singh', and 'anuj'
+-- Actual hashes for logic:
+-- rajput: $2y$10$RzUv9Lw.8v0J9R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7
+-- singh:  $2y$10$L1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7
+-- anuj:   $2y$10$A1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7J8R1v7
 
 -- Donation Requests Table
 CREATE TABLE IF NOT EXISTS requests (

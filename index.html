@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BloodBank - Advanced Blood Bank System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
@@ -32,7 +33,6 @@
             },
             animation: {
               'blob': 'blob 7s infinite',
-              'wave': 'wave 2s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite',
               'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
             },
             keyframes: {
@@ -41,10 +41,6 @@
                 '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
                 '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
                 '100%': { transform: 'translate(0px, 0px) scale(1)' },
-              },
-              wave: {
-                '0%': { transform: 'translateX(0)' },
-                '100%': { transform: 'translateX(-50%)' },
               },
               fadeInUp: {
                 '0%': { opacity: '0', transform: 'translateY(10px)' },
@@ -57,19 +53,9 @@
     </script>
     <style>
       :root { --accent-color: #e11d48; }
-      .accent-blue { --accent-color: #2563eb; }
-      .accent-green { --accent-color: #16a34a; }
-      .accent-purple { --accent-color: #9333ea; }
-      .accent-blood { --accent-color: #e11d48; }
-      .text-accent { color: var(--accent-color); }
-      .bg-accent { background-color: var(--accent-color); }
-      .border-accent { border-color: var(--accent-color); }
-      .ring-accent { --tw-ring-color: var(--accent-color); }
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: #f1f1f1; }
-      ::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 4px; }
-      .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
-      .glass-dark { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+      ::-webkit-scrollbar-thumb { background: #e11d48; border-radius: 4px; }
     </style>
   <script type="importmap">
 {
@@ -83,7 +69,7 @@
 }
 </script>
 </head>
-  <body class="accent-blood">
+  <body class="bg-gray-50 dark:bg-gray-950">
     <div id="root"></div>
   </body>
 </html>

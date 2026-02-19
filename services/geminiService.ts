@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { User, UserRole } from "../types";
 
@@ -60,7 +61,6 @@ export const chatWithSamrat = async (message: string, context: string, useThinki
     };
 
     if (useThinking) {
-      // Enabling reasoning with Thinking Config for Gemini 3 models.
       config.thinkingConfig = { thinkingBudget: 32768 };
     }
 
@@ -94,9 +94,8 @@ export const analyzeMedicalImage = async (base64Data: string, mimeType: string):
   const ai = getAiClient();
 
   try {
-    // Fix: Updated model to gemini-3-pro-image-preview for high-quality multimodal analysis.
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
+      model: 'gemini-3-pro-preview',
       contents: {
         parts: [
           {
@@ -122,9 +121,8 @@ export const transcribeAudio = async (base64Audio: string): Promise<string> => {
   const ai = getAiClient();
 
   try {
-    // Fix: Using native audio model gemini-2.5-flash-native-audio-preview-12-2025 for audio processing.
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           {

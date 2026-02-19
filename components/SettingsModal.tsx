@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   User as UserIcon, Camera, Mail, Phone, Lock, Eye, EyeOff, 
-  Sun, Moon, Palette, Type, Globe, Clock, Calendar, 
+  Palette, Type, Globe, Clock, Calendar, 
   Trash2, AlertTriangle, CheckCircle2, X, Save, ShieldAlert, Droplet,
   Server, Link, Settings
 } from 'lucide-react';
@@ -19,7 +19,7 @@ interface SettingsModalProps {
   onToggleTheme: () => void;
 }
 
-type SettingsTab = 'profile' | 'appearance' | 'network' | 'security';
+type SettingsTab = 'profile' | 'network' | 'security';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
   user, onClose, onUpdate, onLogout, isDarkMode, onToggleTheme 
@@ -48,9 +48,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       const updated = await API.updateUserProfile(user._id, formData);
       onUpdate(updated);
-      alert("Profile updated in MySQL!");
+      alert("Profile updated successfully!");
     } catch (err) {
-      alert("Failed to update MySQL record.");
+      alert("Failed to update profile record.");
     } finally {
       setIsLoading(false);
     }
@@ -64,11 +64,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Display Identity</label>
-                <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold dark:text-white" />
+                <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Blood Group</label>
-                <select value={formData.bloodType} onChange={e => setFormData({...formData, bloodType: e.target.value})} className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold dark:text-white appearance-none">
+                <select value={formData.bloodType} onChange={e => setFormData({...formData, bloodType: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold appearance-none">
                   {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -80,11 +80,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       case 'network':
         return (
           <div className="space-y-8 text-left">
-            <div className="p-6 bg-blue-50 dark:bg-blue-900/10 rounded-[2rem] border border-blue-100 dark:border-blue-900/30 flex items-start gap-4">
-               <div className="p-3 bg-white dark:bg-blue-900 rounded-2xl text-blue-600 shadow-sm"><Globe size={24}/></div>
+            <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 flex items-start gap-4">
+               <div className="p-3 bg-white rounded-2xl text-blue-600 shadow-sm"><Globe size={24}/></div>
                <div>
-                  <h4 className="font-black text-blue-900 dark:text-blue-400 uppercase text-sm">XAMPP Centralized Storage</h4>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">To see data on other laptops, enter the IP address of the laptop running XAMPP.</p>
+                  <h4 className="font-black text-blue-900 uppercase text-sm">XAMPP Centralized Storage</h4>
+                  <p className="text-xs text-blue-700 mt-1">To see data on other laptops, enter the IP address of the laptop running XAMPP.</p>
                </div>
             </div>
 
@@ -96,14 +96,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     value={serverIp} 
                     onChange={e => setServerIp(e.target.value)}
                     placeholder="e.g. 192.168.1.15"
-                    className="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-mono font-bold text-gray-900 dark:text-white border-2 border-transparent focus:border-blood-500 transition-all"
+                    className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-mono font-bold text-gray-900 border-2 border-transparent focus:border-blood-500 transition-all"
                   />
                   <p className="text-[10px] text-gray-400 font-medium px-1">Default: 'localhost' (for same machine). Use IPv4 for network sync.</p>
                </div>
 
                <div className="space-y-1">
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2"><Link size={12}/> API Endpoint</label>
-                  <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl text-[10px] font-mono text-gray-500 break-all">
+                  <div className="p-4 bg-gray-100 rounded-2xl text-[10px] font-mono text-gray-500 break-all">
                     http://{serverIp}/bloodbank-api/api.php
                   </div>
                </div>
@@ -115,21 +115,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         );
 
-      case 'appearance':
-        return (
-          <div className="space-y-8 text-left">
-            <div className="flex justify-between items-center p-6 bg-gray-50 dark:bg-gray-800 rounded-2xl">
-              <div>
-                <p className="font-bold text-gray-900 dark:text-white">Dark Mode Simulation</p>
-                <p className="text-xs text-gray-500">Toggle system aesthetics</p>
-              </div>
-              <button onClick={onToggleTheme} className={`w-14 h-8 rounded-full transition-colors relative ${isDarkMode ? 'bg-blood-600' : 'bg-gray-300'}`}>
-                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-7' : 'translate-x-1'}`}></div>
-              </button>
-            </div>
-          </div>
-        );
-
       default:
         return null;
     }
@@ -137,16 +122,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md bg-black/40 animate-fade-in-up">
-      <div className="bg-white dark:bg-gray-900 w-full max-w-4xl rounded-[3rem] shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden flex flex-col md:flex-row h-[70vh]">
-        <div className="w-full md:w-72 border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/50 p-8 flex flex-col gap-3">
-          {(['profile', 'appearance', 'network', 'security'] as const).map(tab => (
+      <div className="bg-white w-full max-w-4xl rounded-[3rem] shadow-2xl border border-gray-100 overflow-hidden flex flex-col md:flex-row h-[70vh]">
+        <div className="w-full md:w-72 border-r border-gray-100 bg-gray-50/50 p-8 flex flex-col gap-3">
+          {(['profile', 'network', 'security'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all ${
                 activeTab === tab 
                   ? 'bg-blood-600 text-white shadow-xl' 
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  : 'text-gray-500 hover:bg-gray-100'
               }`}
             >
               {tab === 'network' ? <Globe size={18} /> : tab === 'profile' ? <UserIcon size={18} /> : <Settings size={18} />}
@@ -155,9 +140,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           ))}
         </div>
 
-        <div className="flex-1 flex flex-col bg-white dark:bg-gray-900">
-          <div className="p-8 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-            <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{activeTab} configuration</h4>
+        <div className="flex-1 flex flex-col bg-white">
+          <div className="p-8 border-b border-gray-100 flex justify-between items-center">
+            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight">{activeTab} configuration</h4>
             <button onClick={onClose} className="p-2 text-gray-400 hover:text-blood-600 transition-colors"><X size={24} /></button>
           </div>
 

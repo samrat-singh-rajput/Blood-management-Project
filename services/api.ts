@@ -1,101 +1,179 @@
+
 import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, Hospital, ChatMessage, DonorCertificate, EmergencyKey, Campaign } from "../types";
 
-const getBaseUrl = () => {
-  const ip = localStorage.getItem('bloodbank_server_ip') || 'localhost';
-  return `http://${ip}/bloodbank-api/api.php`;
-};
+// Virtual Database Storage
+const getStorage = (key: string) => JSON.parse(localStorage.getItem(`bb_mock_${key}`) || '[]');
+const setStorage = (key: string, data: any) => localStorage.setItem(`bb_mock_${key}`, JSON.stringify(data));
 
-const fetchAPI = async (action: string, method: string = 'GET', data: any = null) => {
-  const baseUrl = getBaseUrl();
-  try {
-    const url = new URL(baseUrl);
-    url.searchParams.append('action', action);
-    
-    const options: RequestInit = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-    };
-    
-    if (data && method !== 'GET') options.body = JSON.stringify(data);
-    
-    const response = await fetch(url.toString(), options);
-    const result = await response.json();
-    if (result.error) throw new Error(result.error);
-    return result;
-  } catch (error: any) {
-    if (error.message.includes('Failed to fetch')) {
-        throw new Error('Server Unreachable. Check XAMPP/Network.');
-    }
-    throw error;
+// Initialize Default Users
+const initMockDB = () => {
+  const users = getStorage('users');
+  if (users.length === 0) {
+    const defaults = [
+      { _id: 'admin_01', username: 'rajput', password: 'rajput', role: UserRole.ADMIN, name: 'Samrat Admin', email: 'admin@gmail.com', status: 'Active', joinDate: '2023-10-01' },
+      { _id: 'donor_01', username: 'anuj', password: 'singh', role: UserRole.DONOR, name: 'Anuj Donor', bloodType: 'A+', email: 'donor@gmail.com', status: 'Active', joinDate: '2023-10-01' },
+      { _id: 'user_01', username: 'anuj_user', password: 'anuj', role: UserRole.USER, name: 'Anuj Recipient', bloodType: 'B-', email: 'user@gmail.com', status: 'Active', joinDate: '2023-10-01' }
+    ];
+    setStorage('users', defaults);
   }
 };
+initMockDB();
 
 export const API = {
-  login: async (username: string, pass: string, role: UserRole): Promise<User> => {
-    const res = await fetchAPI('login', 'POST', { username, password: pass, role });
-    return res.user;
+  login: async (usernameOrEmail: string, pass: string, role: UserRole): Promise<User> => {
+    await new Promise(r => setTimeout(r, 500));
+    const users = getStorage('users');
+    const user = users.find((u: any) => 
+      (u.username === usernameOrEmail || u.email?.toLowerCase() === usernameOrEmail.toLowerCase()) && 
+      u.password === pass && 
+      u.role === role
+    );
+    if (!user) throw new Error("Invalid credentials or role mismatch");
+    return user;
   },
 
-  sendSignupOtp: async (email: string) => {
-    return await fetchAPI('send_signup_otp', 'POST', { email });
+  isEmailRegistered: async (email: string): Promise<User | null> => {
+    await new Promise(r => setTimeout(r, 600));
+    const users = getStorage('users');
+    const user = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+    return user || null;
   },
 
-  verifySignupOtp: async (email: string, otp: string) => {
-    return await fetchAPI('verify_signup_otp', 'POST', { email, otp });
+  checkEmail: async (email: string) => {
+    await new Promise(r => setTimeout(r, 600));
+    const users = getStorage('users');
+    if (users.some((u: any) => u.email?.toLowerCase() === email.toLowerCase())) {
+      throw new Error("This email is already registered. Please log in.");
+    }
+    return { success: true };
   },
 
   completeSignup: async (data: any) => {
-    const res = await fetchAPI('complete_signup', 'POST', data);
-    return res.user;
+    await new Promise(r => setTimeout(r, 800));
+    const users = getStorage('users');
+    // Double check email conflict
+    if (users.some((u: any) => u.email?.toLowerCase() === data.email.toLowerCase())) {
+      throw new Error("Email already registered during session. Please log in.");
+    }
+    
+    const newUser = {
+      _id: `BB_${Math.random().toString(36).substr(2, 9)}`,
+      ...data,
+      status: 'Active',
+      joinDate: new Date().toISOString().split('T')[0]
+    };
+    users.push(newUser);
+    setStorage('users', users);
+    return newUser;
+  },
+
+  getUsers: async (): Promise<User[]> => getStorage('users'),
+  getDonationRequests: async (): Promise<DonationRequest[]> => getStorage('requests'),
+  getHospitals: async (): Promise<Hospital[]> => getStorage('hospitals'),
+  getFeedbacks: async (): Promise<Feedback[]> => getStorage('feedbacks'),
+  getBloodStocks: async (): Promise<BloodStock[]> => getStorage('stocks'),
+  getSecurityLogs: async (): Promise<SecurityLog[]> => getStorage('logs'),
+  
+  sendMessage: async (msg: any) => {
+    const chats = getStorage('messages');
+    chats.push({ ...msg, _id: Date.now().toString() });
+    setStorage('messages', chats);
+  },
+  
+  getChatHistory: async (u1: string, u2: string) => {
+    const chats = getStorage('messages');
+    return chats.filter((c: any) => (c.senderId === u1 && c.receiverId === u2) || (c.senderId === u2 && c.receiverId === u1));
+  },
+
+  getAllUserChats: async (uid: string) => {
+    const chats = getStorage('messages');
+    return chats.filter((c: any) => c.senderId === uid || c.receiverId === uid);
+  },
+
+  addDonationRequest: async (req: any) => {
+    const items = getStorage('requests');
+    items.push({ ...req, _id: Date.now().toString() });
+    setStorage('requests', items);
+  },
+
+  updateDonationRequestStatus: async (id: string, s: string) => {
+    const items = getStorage('requests');
+    const idx = items.findIndex((i: any) => i._id === id);
+    if (idx !== -1) items[idx].status = s;
+    setStorage('requests', items);
   },
 
   getCampaigns: async (): Promise<Campaign[]> => {
-    try { return await fetchAPI('get_campaigns'); } 
-    catch (e) { return [{ _id: 'c1', title: 'Mega Drive', description: 'Saving lives.', date: 'Dec 2024', location: 'City Hall', imageUrl: 'https://images.unsplash.com/photo-1615461066841-6116ecaaba7f', attendees: 50 }]; }
+    return [
+      { _id: 'c1', title: 'Mega Blood Drive', description: 'Helping the community.', date: 'Dec 24, 2024', location: 'Central Park', imageUrl: 'https://images.unsplash.com/photo-1615461066841-6116ecaaba7f', attendees: 124 },
+      { _id: 'c2', title: 'Winter Support', description: 'Winter blood collection.', date: 'Jan 10, 2025', location: 'City Hospital', imageUrl: 'https://images.unsplash.com/photo-1579152276502-545a248a9931', attendees: 89 }
+    ];
   },
 
-  getUsers: async (): Promise<User[]> => fetchAPI('get_users'),
-  getDonationRequests: async (): Promise<DonationRequest[]> => fetchAPI('get_requests'),
-  getHospitals: async (): Promise<Hospital[]> => fetchAPI('get_hospitals'),
-  getFeedbacks: async (): Promise<Feedback[]> => fetchAPI('get_feedbacks'),
-  getBloodStocks: async (): Promise<BloodStock[]> => fetchAPI('get_stocks'),
-  getSecurityLogs: async (): Promise<SecurityLog[]> => fetchAPI('get_logs'),
-  
-  sendMessage: async (msg: any) => fetchAPI('send_message', 'POST', msg),
-  getChatHistory: async (u1: string, u2: string) => fetchAPI('get_chat_history', 'POST', { user1Id: u1, user2Id: u2 }),
-  getAllUserChats: async (uid: string) => fetchAPI('get_all_chats', 'POST', { userId: uid }),
-  
-  addDonationRequest: async (req: any) => fetchAPI('add_request', 'POST', req),
-  updateDonationRequestStatus: async (id: string, s: string) => fetchAPI('update_request_status', 'POST', { requestId: id, status: s }),
-  
-  addHospital: async (h: any) => fetchAPI('add_hospital', 'POST', h),
-  deleteHospital: async (id: string) => fetchAPI('delete_hospital', 'POST', { hospitalId: id }),
-  
+  addHospital: async (h: any) => {
+    const items = getStorage('hospitals');
+    items.push({ ...h, _id: Date.now().toString() });
+    setStorage('hospitals', items);
+  },
+
+  deleteHospital: async (id: string) => {
+    const items = getStorage('hospitals');
+    setStorage('hospitals', items.filter((i: any) => i._id !== id));
+  },
+
+  addFeedback: async (f: any) => {
+    const items = getStorage('feedbacks');
+    items.push({ ...f, _id: Date.now().toString() });
+    setStorage('feedbacks', items);
+  },
+
+  replyToFeedback: async (id: string, r: string) => {
+    const items = getStorage('feedbacks');
+    const idx = items.findIndex((i: any) => i._id === id);
+    if (idx !== -1) items[idx].reply = r;
+    setStorage('feedbacks', items);
+  },
+
+  toggleUserStatus: async (uid: string) => {
+    const users = getStorage('users');
+    const idx = users.findIndex((u: any) => u._id === uid);
+    if (idx !== -1) {
+      users[idx].status = users[idx].status === 'Active' ? 'Blocked' : 'Active';
+      setStorage('users', users);
+      return users[idx].status;
+    }
+  },
+
+  getCertificates: async (uid: string) => getStorage('certificates').filter((c: any) => c.donorId === uid),
+  addCertificate: async (c: any) => {
+    const items = getStorage('certificates');
+    items.push({ ...c, _id: Date.now().toString() });
+    setStorage('certificates', items);
+  },
+
+  getAppointments: async (uid: string) => getStorage('appointments').filter((a: any) => a.donorId === uid),
+  scheduleAppointment: async (a: any) => {
+    const items = getStorage('appointments');
+    items.push({ ...a, _id: Date.now().toString() });
+    setStorage('appointments', items);
+  },
+
+  getEmergencyKeys: async (uid: string): Promise<EmergencyKey[]> => getStorage('keys').filter((k: any) => k.ownerId === uid),
   issueEmergencyKey: async (uid: string) => {
+    const keys = getStorage('keys');
     const code = `KEY-${Math.floor(1000 + Math.random() * 8999)}`;
-    await fetchAPI('add_key', 'POST', { code, ownerId: uid, type: 'Gold', issuedDate: new Date().toISOString().split('T')[0] });
+    keys.push({ _id: Date.now().toString(), code, ownerId: uid, type: 'Gold', issuedDate: new Date().toISOString().split('T')[0], status: 'Active', usesRemaining: 1 });
+    setStorage('keys', keys);
     return code;
   },
 
-  // Fix: Added missing getEmergencyKeys method to retrieve the priority keys issued to a user.
-  getEmergencyKeys: async (uid: string): Promise<EmergencyKey[]> => fetchAPI('get_keys', 'POST', { userId: uid }),
-  
-  addFeedback: async (f: any) => fetchAPI('add_feedback', 'POST', f),
-  replyToFeedback: async (id: string, r: string) => fetchAPI('reply_feedback', 'POST', { feedbackId: id, reply: r }),
-  
-  toggleUserStatus: async (uid: string) => {
-    const res = await fetchAPI('toggle_user_status', 'POST', { userId: uid });
-    return res.newStatus;
-  },
-
-  getCertificates: async (uid: string) => fetchAPI('get_certificates', 'POST', { donorId: uid }),
-  addCertificate: async (c: any) => fetchAPI('add_certificate', 'POST', c),
-  
-  getAppointments: async (uid: string) => fetchAPI('get_appointments', 'POST', { userId: uid }),
-  scheduleAppointment: async (a: any) => fetchAPI('add_appointment', 'POST', a),
-  
   updateUserProfile: async (uid: string, data: any) => {
-    const res = await fetchAPI('update_profile', 'POST', { userId: uid, ...data });
-    return res.user;
+    const users = getStorage('users');
+    const idx = users.findIndex((u: any) => u._id === uid);
+    if (idx !== -1) {
+      users[idx] = { ...users[idx], ...data };
+      setStorage('users', users);
+      return users[idx];
+    }
   }
 };
