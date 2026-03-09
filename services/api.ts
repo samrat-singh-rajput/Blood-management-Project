@@ -10,9 +10,9 @@ const initMockDB = () => {
   const users = getStorage('users');
   if (users.length === 0) {
     const defaults = [
-      { _id: 'admin_01', username: 'rajput', password: 'rajput', role: UserRole.ADMIN, name: 'Samrat Admin', email: 'admin@gmail.com', status: 'Active', joinDate: '2023-10-01' },
-      { _id: 'donor_01', username: 'anuj', password: 'singh', role: UserRole.DONOR, name: 'Anuj Donor', bloodType: 'A+', email: 'donor@gmail.com', status: 'Active', joinDate: '2023-10-01' },
-      { _id: 'user_01', username: 'anuj_user', password: 'anuj', role: UserRole.USER, name: 'Anuj Recipient', bloodType: 'B-', email: 'user@gmail.com', status: 'Active', joinDate: '2023-10-01' }
+      { _id: 'admin_01', username: 'rajput', password: 'rajput', role: UserRole.ADMIN, name: 'Samrat Admin', email: 'admin@gmail.com', phone: '9999999999', status: 'Active', joinDate: '2023-10-01' },
+      { _id: 'donor_01', username: 'anuj', password: 'singh', role: UserRole.DONOR, name: 'Anuj Donor', bloodType: 'A+', email: 'donor@gmail.com', phone: '8888888888', status: 'Active', joinDate: '2023-10-01' },
+      { _id: 'user_01', username: 'anuj_user', password: 'anuj', role: UserRole.USER, name: 'Anuj Recipient', bloodType: 'B-', email: 'user@gmail.com', phone: '7777777777', status: 'Active', joinDate: '2023-10-01' }
     ];
     setStorage('users', defaults);
   }
@@ -20,11 +20,13 @@ const initMockDB = () => {
 initMockDB();
 
 export const API = {
-  login: async (usernameOrEmail: string, pass: string, role: UserRole): Promise<User> => {
+  login: async (usernameOrEmailOrPhone: string, pass: string, role: UserRole): Promise<User> => {
     await new Promise(r => setTimeout(r, 500));
     const users = getStorage('users');
     const user = users.find((u: any) => 
-      (u.username === usernameOrEmail || u.email?.toLowerCase() === usernameOrEmail.toLowerCase()) && 
+      (u.username === usernameOrEmailOrPhone || 
+       u.email?.toLowerCase() === usernameOrEmailOrPhone.toLowerCase() ||
+       u.phone === usernameOrEmailOrPhone) && 
       u.password === pass && 
       u.role === role
     );
@@ -39,6 +41,39 @@ export const API = {
     return user || null;
   },
 
+  isPhoneRegistered: async (phone: string): Promise<User | null> => {
+    await new Promise(r => setTimeout(r, 600));
+    const users = getStorage('users');
+    const user = users.find((u: any) => u.phone === phone);
+    return user || null;
+  },
+
+  sendOTP: async (email: string): Promise<{ success: boolean; message: string; mock?: boolean }> => {
+    const response = await fetch('/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to send OTP");
+    
+    return data;
+  },
+
+  verifyOTP: async (email: string, otp: string): Promise<boolean> => {
+    const response = await fetch('/api/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp })
+    });
+    
+    const data = await response.json();
+    if (!response.ok) return false;
+    
+    return data.success;
+  },
+
   checkEmail: async (email: string) => {
     await new Promise(r => setTimeout(r, 600));
     const users = getStorage('users');
@@ -51,9 +86,15 @@ export const API = {
   completeSignup: async (data: any) => {
     await new Promise(r => setTimeout(r, 800));
     const users = getStorage('users');
-    // Double check email conflict
-    if (users.some((u: any) => u.email?.toLowerCase() === data.email.toLowerCase())) {
-      throw new Error("Email already registered during session. Please log in.");
+    
+    // Check phone conflict
+    if (data.phone && users.some((u: any) => u.phone === data.phone)) {
+      throw new Error("Phone number already registered. Please log in.");
+    }
+    
+    // Check email conflict if provided
+    if (data.email && users.some((u: any) => u.email?.toLowerCase() === data.email.toLowerCase())) {
+      throw new Error("Email already registered. Please log in.");
     }
     
     const newUser = {

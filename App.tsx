@@ -15,7 +15,7 @@ import { Button } from './components/Button';
 import { SettingsModal } from './components/SettingsModal';
 
 type ViewState = 'landing' | 'login' | 'register' | 'dashboard';
-type SignupStep = 'identity' | 'verify_pass' | 'profile_setup';
+type SignupStep = 'identity' | 'verify_otp' | 'profile_setup';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('landing');
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   // Identity-First Signup States
   const [regStep, setRegStep] = useState<SignupStep>('identity');
   const [regEmail, setRegEmail] = useState('');
+  const [regOTP, setRegOTP] = useState('');
   const [regPass, setRegPass] = useState('');
   const [isExistingIdentity, setIsExistingIdentity] = useState(false);
   const [existingUserRef, setExistingUserRef] = useState<User | null>(null);
@@ -38,25 +39,11 @@ const App: React.FC = () => {
 
   /**
    * Enhanced Strict Email Validation
-   * Rejects: Internal spaces, special symbols (!#$% etc), symbols at start/end.
    */
   const validateEmailStrict = (email: string) => {
     const raw = email.trim().toLowerCase();
-    
-    // Check for any whitespace inside the email
     if (/\s/.test(raw)) return false;
-    
-    // Basic character set: lowercase, numbers, dot, underscore, hyphen
     if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(raw)) return false;
-
-    const [local] = raw.split('@');
-    
-    // Extra strict: No symbols at the very beginning or end of local part
-    if (/^[._-]/.test(local) || /[._-]$/.test(local)) return false;
-    
-    // Reject common symbols that users might try to use
-    if (/[!#\$%^&*()+=]/.test(local)) return false;
-
     return true;
   };
 
@@ -65,7 +52,7 @@ const App: React.FC = () => {
     setAuthError('');
     
     if (!validateEmailStrict(regEmail)) {
-      setAuthError("Format error: Only lowercase a-z, 0-9, and ._- (not at start/end) are allowed. No spaces or special symbols.");
+      setAuthError("Format error: Please enter a valid email address.");
       return;
     }
 
@@ -80,7 +67,13 @@ const App: React.FC = () => {
         setIsExistingIdentity(false);
         setExistingUserRef(null);
       }
-      setRegStep('verify_pass');
+      
+      // Send OTP
+      const result = await API.sendOTP(regEmail.toLowerCase());
+      if (result.mock) {
+        setAuthError("NOTICE: Email credentials missing. The OTP has been logged to the SERVER CONSOLE for development.");
+      }
+      setRegStep('verify_otp');
     } catch (err: any) {
       setAuthError(err.message || "Database connection error.");
     } finally {
@@ -88,34 +81,32 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSignupPassword = async (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (regPass.length < 4) {
-      setAuthError("Password must be at least 4 characters.");
+    if (regOTP.length !== 6) {
+      setAuthError("OTP must be 6 digits.");
       return;
     }
     setAuthError('');
-
-    if (isExistingIdentity && existingUserRef) {
-      // If identity exists, we must verify the password matches the DB
-      setIsAuthLoading(true);
-      try {
-        await API.login(regEmail.toLowerCase(), regPass, existingUserRef.role);
-        // If login successful, skip to profile to allow updates or proceed to dashboard
-        setRegDetails({
-          username: existingUserRef.username,
-          bloodType: existingUserRef.bloodType || 'O+',
-          role: existingUserRef.role
-        });
+    setIsAuthLoading(true);
+    try {
+      const isValid = await API.verifyOTP(regEmail.toLowerCase(), regOTP);
+      if (isValid) {
+        if (isExistingIdentity && existingUserRef) {
+          setRegDetails({
+            username: existingUserRef.username,
+            bloodType: existingUserRef.bloodType || 'O+',
+            role: existingUserRef.role
+          });
+        }
         setRegStep('profile_setup');
-      } catch (err: any) {
-        setAuthError("Incorrect password for this registered email.");
-      } finally {
-        setIsAuthLoading(false);
+      } else {
+        setAuthError("Invalid OTP. Please try again.");
       }
-    } else {
-      // New User path: proceed to capture details
-      setRegStep('profile_setup');
+    } catch (err: any) {
+      setAuthError(err.message || "OTP verification failed.");
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
@@ -141,7 +132,6 @@ const App: React.FC = () => {
         // Create brand new database record
         const newUser = await API.completeSignup({
           email: regEmail.toLowerCase(),
-          password: regPass,
           username: regDetails.username,
           name: regDetails.username,
           bloodType: regDetails.bloodType,
@@ -177,6 +167,7 @@ const App: React.FC = () => {
     setCurrentView('landing');
     setRegStep('identity');
     setRegEmail('');
+    setRegOTP('');
     setRegPass('');
     setAuthError('');
   };
@@ -190,7 +181,7 @@ const App: React.FC = () => {
             <p className="text-sm text-gray-500">Enter your email to join or sync your existing node.</p>
             <div className="text-left space-y-2">
               <input 
-                type="text" required placeholder="user@domain.com" 
+                type="email" required placeholder="user@domain.com" 
                 value={regEmail} onChange={e => setRegEmail(e.target.value)}
                 className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 focus:ring-2 focus:ring-blood-500 outline-none font-bold shadow-inner" 
               />
@@ -202,33 +193,30 @@ const App: React.FC = () => {
               <button type="button" onClick={() => setCurrentView('landing')} className="flex items-center gap-1.5 text-gray-500 font-bold text-sm hover:underline">
                 <ArrowLeft size={16} /> Home
               </button>
-              <Button isLoading={isAuthLoading} className="px-12 rounded-xl shadow-lg border-none font-black uppercase text-[11px] tracking-widest">Identify</Button>
+              <Button isLoading={isAuthLoading} className="px-12 rounded-xl shadow-lg border-none font-black uppercase text-[11px] tracking-widest">Send OTP</Button>
             </div>
           </form>
         );
-      case 'verify_pass':
+      case 'verify_otp':
         return (
-          <form onSubmit={handleSignupPassword} className="space-y-6 animate-fade-in-up text-center">
+          <form onSubmit={handleVerifyOTP} className="space-y-6 animate-fade-in-up text-center">
             <div className="flex justify-center mb-2">
                <div className="px-4 py-2 border border-gray-200 rounded-full flex items-center gap-2 bg-gray-50 text-[10px] font-black uppercase text-gray-400">
                  <Mail size={12}/> {regEmail}
                </div>
             </div>
             <h2 className="text-2xl font-black text-gray-900 uppercase">
-              {isExistingIdentity ? 'Welcome Back' : 'Security Setup'}
+              Verify OTP
             </h2>
             <p className="text-sm text-gray-500">
-              {isExistingIdentity ? 'Account confirmed. Enter password to authorize.' : 'New email. Set a secure password for your record.'}
+              Enter the 6-digit code sent to your email address.
             </p>
             <div className="relative">
               <input 
-                type={showPass ? "text" : "password"} required placeholder="Account Password" 
-                value={regPass} onChange={e => setRegPass(e.target.value)}
-                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 shadow-inner" 
+                type="text" required placeholder="000000" 
+                value={regOTP} onChange={e => setRegOTP(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blood-500 shadow-inner text-center text-2xl tracking-[0.5em]" 
               />
-              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                {showPass ? <EyeOff size={20}/> : <Eye size={20}/>}
-              </button>
             </div>
             {authError && <div className="p-4 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
             <div className="flex justify-between items-center pt-6">
@@ -236,7 +224,7 @@ const App: React.FC = () => {
                 <ArrowLeft size={16} /> Back
               </button>
               <Button isLoading={isAuthLoading} className="px-12 rounded-xl shadow-lg border-none font-black uppercase text-[11px] tracking-widest">
-                {isExistingIdentity ? 'Verify' : 'Next'}
+                Verify OTP
               </Button>
             </div>
           </form>
@@ -274,7 +262,7 @@ const App: React.FC = () => {
             </div>
             {authError && <div className="p-4 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100">{authError}</div>}
             <div className="flex justify-between items-center pt-6">
-              <button type="button" onClick={() => setRegStep('verify_pass')} className="flex items-center gap-1.5 text-gray-500 font-bold text-sm hover:underline">
+              <button type="button" onClick={() => setRegStep('verify_otp')} className="flex items-center gap-1.5 text-gray-500 font-bold text-sm hover:underline">
                 <ArrowLeft size={16} /> Back
               </button>
               <Button isLoading={isAuthLoading} className="px-14 py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl border-none text-[12px]">Finalize Registry</Button>
