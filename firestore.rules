@@ -1,0 +1,183 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (Firebase Auth UID)
+    // Fields:
+    //   - username: string (required)
+    //   - role: string (required, enum: ADMIN, DONOR, USER)
+    //   - name: string (required)
+    //   - email: string (optional)
+    //   - bloodType: string (optional)
+    //   - status: string (optional, enum: Active, Blocked)
+    //
+    // Collection: messages
+    // Document ID: auto-generated
+    // Fields:
+    //   - senderId: string (required)
+    //   - receiverId: string (required)
+    //   - text: string (required, size < 1000)
+    //   - timestamp: string (required, ISO 8601)
+    //
+    // Collection: stocks
+    // Document ID: auto-generated
+    // Fields:
+    //   - bloodType: string (required)
+    //   - units: number (required, positive)
+    //   - hospitalName: string (required)
+    //
+    // Collection: requests
+    // Document ID: auto-generated
+    // Fields:
+    //   - bloodType: string (required)
+    //   - status: string (required, enum: Pending, Approved, Completed, Rejected)
+    //   - urgency: string (required, enum: Low, Medium, Critical)
+    //   - type: string (required, enum: Donation, Request)
+    //
+    // Collection: feedback
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required)
+    //   - message: string (required, size < 2000)
+    //   - date: string (required, ISO 8601)
+    //
+    // Collection: hospitals
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - city: string (required)
+    //   - email: string (required)
+    //
+    // Collection: keys
+    // Document ID: auto-generated
+    // Fields:
+    //   - code: string (required)
+    //   - ownerId: string (required)
+    //
+    // Collection: campaigns
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - date: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+          (request.auth.token.email == "23012011154@gnu.ac.in" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['username', 'role', 'name']) &&
+             data.username is string && data.username.size() > 0 && data.username.size() < 50 &&
+             data.role in ['ADMIN', 'DONOR', 'USER', 'GUEST'] &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100;
+    }
+
+    function isValidMessage(data) {
+      return hasRequiredFields(['senderId', 'receiverId', 'text', 'timestamp']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             isValidDateString(data.timestamp);
+    }
+
+    function isValidFeedback(data) {
+      return hasRequiredFields(['userId', 'message', 'date']) &&
+             data.userId == request.auth.uid &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 2000 &&
+             isValidDateString(data.date);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId || isAdmin());
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /stocks/{stockId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.donorId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+      allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /hospitals/{hospitalId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /keys/{keyId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.ownerId);
+      allow write: if isAdmin();
+    }
+
+    match /campaigns/{campaignId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

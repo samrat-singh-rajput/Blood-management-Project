@@ -7,7 +7,11 @@ import { Button } from './Button';
 
 type UserPanelView = 'search' | 'register_request' | 'chat';
 
-export const UserPanel: React.FC = () => {
+interface UserPanelProps {
+  user: User;
+}
+
+export const UserPanel: React.FC<UserPanelProps> = ({ user }) => {
   const [activeView, setActiveView] = useState<UserPanelView>('search');
   const [bloodType, setBloodType] = useState('All');
   const [city, setCity] = useState('');
@@ -19,12 +23,12 @@ export const UserPanel: React.FC = () => {
   
   // Blood Request Form State
   const [requestForm, setRequestForm] = useState({
-    patientName: '',
+    patientName: user.name,
     bloodType: 'O+',
     units: 1,
     hospital: '',
     city: '',
-    phone: '',
+    phone: user.phone || '',
     urgency: 'Medium' as 'Low' | 'Medium' | 'Critical'
   });
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
@@ -41,13 +45,11 @@ export const UserPanel: React.FC = () => {
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [userFeedbacks, setUserFeedbacks] = useState<Feedback[]>([]);
 
-  const currentUser = JSON.parse(localStorage.getItem('lifeflow_current_user') || '{}');
-
   useEffect(() => {
     loadDonors();
     loadMyFeedbacks();
     loadRecentChats();
-  }, []);
+  }, [user._id]);
 
   useEffect(() => {
     if (activeChatPartner) {
@@ -74,12 +76,12 @@ export const UserPanel: React.FC = () => {
 
   const loadRecentChats = async () => {
     try {
-      const allChats = await API.getAllUserChats(currentUser._id);
+      const allChats = await API.getAllUserChats(user._id);
       const partnersMap = new Map<string, {user: User, lastMsg: string}>();
       const allUsers = await API.getUsers();
 
       allChats.reverse().forEach(c => {
-        const partnerId = c.senderId === currentUser._id ? c.receiverId : c.senderId;
+        const partnerId = c.senderId === user._id ? c.receiverId : c.senderId;
         if (!partnersMap.has(partnerId)) {
           const partner = allUsers.find(u => u._id === partnerId);
           if (partner) {
@@ -94,7 +96,7 @@ export const UserPanel: React.FC = () => {
   };
 
   const loadChatHistory = async (partnerId: string) => {
-    const history = await API.getChatHistory(currentUser._id, partnerId);
+    const history = await API.getChatHistory(user._id, partnerId);
     setChatHistory(history);
   };
 
@@ -103,8 +105,8 @@ export const UserPanel: React.FC = () => {
     if (!chatInput.trim() || !activeChatPartner) return;
 
     const newMsg: Omit<ChatMessage, '_id'> = {
-      senderId: currentUser._id,
-      senderName: currentUser.name,
+      senderId: user._id,
+      senderName: user.name,
       receiverId: activeChatPartner._id,
       receiverName: activeChatPartner.name,
       text: chatInput.trim(),
@@ -125,7 +127,7 @@ export const UserPanel: React.FC = () => {
   const loadMyFeedbacks = async () => {
     try {
       const allFeedbacks = await API.getFeedbacks();
-      setUserFeedbacks(allFeedbacks.filter(f => f.userId === currentUser._id));
+      setUserFeedbacks(allFeedbacks.filter(f => f.userId === user._id));
     } catch (error) {
       console.error("Failed to load feedbacks", error);
     }
@@ -186,8 +188,9 @@ export const UserPanel: React.FC = () => {
     setIsSendingFeedback(true);
     try {
       const f: Omit<Feedback, '_id'> = {
-        userId: currentUser._id,
-        userRole: currentUser.role,
+        userId: user._id,
+        userName: user.name,
+        userRole: user.role,
         message: feedbackText.trim(),
         date: new Date().toLocaleString()
       };
@@ -220,7 +223,7 @@ export const UserPanel: React.FC = () => {
                   className={`w-full p-5 text-left flex items-center gap-4 transition-all hover:bg-white dark:hover:bg-gray-800 border-b border-gray-50 dark:border-gray-800 ${activeChatPartner?._id === chat.user._id ? 'bg-white dark:bg-gray-800 shadow-inner' : ''}`}
                  >
                     <div className="w-12 h-12 rounded-xl bg-blood-100 dark:bg-blood-900/30 text-blood-700 dark:text-blood-400 flex items-center justify-center font-black text-lg">
-                      {chat.user.name.charAt(0)}
+                      {(chat.user.name || '').charAt(0)}
                     </div>
                     <div className="flex-1 overflow-hidden text-left">
                        <p className="font-bold text-gray-900 dark:text-white truncate">{chat.user.name}</p>
@@ -251,7 +254,7 @@ export const UserPanel: React.FC = () => {
                          <ArrowLeft size={20} />
                       </button>
                       <div className="w-10 h-10 rounded-xl bg-blood-600 text-white flex items-center justify-center font-black">
-                         {activeChatPartner.name.charAt(0)}
+                         {(activeChatPartner.name || '').charAt(0)}
                       </div>
                       <div className="text-left">
                          <h4 className="font-black text-gray-900 dark:text-white tracking-tight">{activeChatPartner.name}</h4>
@@ -275,10 +278,10 @@ export const UserPanel: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30 dark:bg-gray-950/30 custom-scrollbar">
                    {chatHistory.map(msg => (
-                     <div key={msg._id} className={`flex ${msg.senderId === currentUser._id ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm text-sm ${msg.senderId === currentUser._id ? 'bg-blood-600 text-white rounded-tr-none shadow-blood-500/10' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
+                     <div key={msg._id} className={`flex ${msg.senderId === user._id ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[70%] p-4 rounded-2xl shadow-sm text-sm ${msg.senderId === user._id ? 'bg-blood-600 text-white rounded-tr-none shadow-blood-500/10' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
                            <p className="leading-relaxed font-medium text-left">{msg.text}</p>
-                           <p className={`text-[9px] mt-2 font-bold uppercase tracking-tighter ${msg.senderId === currentUser._id ? 'text-white/60 text-right' : 'text-gray-400'}`}>
+                           <p className={`text-[9px] mt-2 font-bold uppercase tracking-tighter ${msg.senderId === user._id ? 'text-white/60 text-right' : 'text-gray-400'}`}>
                               {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                            </p>
                         </div>
@@ -612,7 +615,7 @@ export const UserPanel: React.FC = () => {
                         <td className="p-5">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-black text-gray-400 group-hover:bg-blood-600 group-hover:text-white transition-all">
-                              {donor.name.charAt(0)}
+                              {(donor.name || '').charAt(0)}
                             </div>
                             <span className="font-bold text-gray-900 dark:text-white">{donor.name}</span>
                           </div>

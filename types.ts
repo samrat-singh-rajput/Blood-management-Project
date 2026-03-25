@@ -78,6 +78,7 @@ export interface DonorCertificate {
 export interface Feedback {
   _id: string;
   userId: string;
+  userName?: string;
   userRole: string;
   message: string;
   date: string;

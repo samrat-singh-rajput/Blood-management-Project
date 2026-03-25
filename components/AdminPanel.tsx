@@ -3,10 +3,15 @@ import { Users, Activity, MessageSquare, ShieldCheck, TrendingUp, BarChart2, Ban
 import { User, DonationRequest, Feedback, BloodStock, SecurityLog, Hospital, UserRole } from '../types';
 import { API } from '../services/api';
 import { Button } from './Button';
+import { realtime } from '../services/realTimeService';
 
 type AdminTab = 'dashboard' | 'users' | 'feedback' | 'hospitals';
 
-export const AdminPanel: React.FC = () => {
+interface AdminPanelProps {
+  user: User;
+}
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   
   // Data States
@@ -34,6 +39,13 @@ export const AdminPanel: React.FC = () => {
 
   useEffect(() => {
     refreshData();
+    
+    const handleNewFeedback = () => {
+      refreshData();
+    };
+    
+    realtime.on('NEW_FEEDBACK', handleNewFeedback);
+    return () => realtime.off('NEW_FEEDBACK', handleNewFeedback);
   }, []);
 
   const refreshData = async () => {
@@ -388,7 +400,7 @@ export const AdminPanel: React.FC = () => {
                      <td className="p-4">
                         <div className="flex items-center gap-4">
                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 group-hover:bg-blood-600 group-hover:text-white transition-colors">
-                              {user.name.charAt(0)}
+                              {(user.name || '').charAt(0)}
                            </div>
                            <p className="font-bold text-gray-900">{user.name}</p>
                         </div>
@@ -465,7 +477,7 @@ export const AdminPanel: React.FC = () => {
                 <div className="flex justify-between items-start mb-4">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-bold text-gray-400 group-hover:bg-blood-600 group-hover:text-white transition-colors">
-                         {f.userRole.charAt(0)}
+                         {(f.userRole || '').charAt(0)}
                       </div>
                       <div>
                         <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-[0.2em] ${f.userRole === 'DONOR' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>

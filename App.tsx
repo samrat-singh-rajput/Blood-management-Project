@@ -18,8 +18,14 @@ type ViewState = 'landing' | 'login' | 'register' | 'dashboard';
 type SignupStep = 'google_login' | 'google_pass' | 'details';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<ViewState>('landing');
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentView, setCurrentView] = useState<ViewState>(() => {
+    const saved = localStorage.getItem('bloodbank_current_user');
+    return saved ? 'dashboard' : 'landing';
+  });
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('bloodbank_current_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -38,6 +44,14 @@ const App: React.FC = () => {
     else document.documentElement.classList.remove('dark');
     localStorage.setItem('bloodbank_theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('bloodbank_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('bloodbank_current_user');
+    }
+  }, [currentUser]);
 
   const handleSimulatedGoogleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +165,7 @@ const App: React.FC = () => {
             <div className="flex justify-center mb-2">
               <div className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-full flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold">
-                  {regEmail.charAt(0).toUpperCase()}
+                  {(regEmail || '').charAt(0).toUpperCase()}
                 </div>
                 <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{regEmail}</span>
               </div>
@@ -287,7 +301,7 @@ const App: React.FC = () => {
 
         {currentView === 'dashboard' && currentUser && (
           <main className="container mx-auto px-6 py-12 animate-fade-in-up">
-            {currentUser.role === UserRole.ADMIN ? <AdminPanel /> : currentUser.role === UserRole.DONOR ? <DonorPanel user={currentUser} /> : <UserPanel />}
+            {currentUser.role === UserRole.ADMIN ? <AdminPanel user={currentUser} /> : currentUser.role === UserRole.DONOR ? <DonorPanel user={currentUser} /> : <UserPanel user={currentUser} />}
           </main>
         )}
       </div>

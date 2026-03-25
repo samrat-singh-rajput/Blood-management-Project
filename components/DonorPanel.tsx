@@ -84,9 +84,22 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
         setEmergencyKeys(prev => [data.key, ...prev]);
       }
     };
+    
+    const handleNewMsg = (msg: ChatMessage) => {
+      if (activeChatPartner && (msg.senderId === activeChatPartner._id || msg.receiverId === activeChatPartner._id)) {
+        setChatHistory(prev => [...prev, msg]);
+      }
+      loadRecentChats();
+    };
+
     realtime.on('NEW_EMERGENCY_KEY', handleNewKey);
-    return () => realtime.off('NEW_EMERGENCY_KEY', handleNewKey);
-  }, [user._id]);
+    realtime.on('NEW_MESSAGE', handleNewMsg);
+    
+    return () => {
+      realtime.off('NEW_EMERGENCY_KEY', handleNewKey);
+      realtime.off('NEW_MESSAGE', handleNewMsg);
+    };
+  }, [user._id, activeChatPartner]);
 
   useEffect(() => {
     if (activeChatPartner) {
@@ -757,7 +770,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
                   className={`w-full p-5 text-left flex items-center gap-4 transition-all hover:bg-white dark:hover:bg-gray-800 border-b border-gray-50 dark:border-gray-800 ${activeChatPartner?._id === chat.user._id ? 'bg-white dark:bg-gray-800 shadow-inner' : ''}`}
                  >
                     <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center font-black text-lg">
-                      {chat.user.name.charAt(0)}
+                      {(chat.user.name || '').charAt(0)}
                     </div>
                     <div className="flex-1 overflow-hidden text-left">
                        <p className="font-bold text-gray-900 dark:text-white truncate">{chat.user.name}</p>
@@ -775,7 +788,7 @@ export const DonorPanel: React.FC<DonorPanelProps> = ({ user }) => {
                 <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm sticky top-0 z-10">
                    <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black">
-                         {activeChatPartner.name.charAt(0)}
+                         {(activeChatPartner.name || '').charAt(0)}
                       </div>
                       <div className="text-left">
                          <h4 className="font-black text-gray-900 dark:text-white tracking-tight">{activeChatPartner.name}</h4>

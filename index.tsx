@@ -1,6 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { seed } from './services/api';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Initialize Firestore data
+seed();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -10,6 +15,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

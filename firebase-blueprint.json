@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the blood bank system, can be Admin, Donor, or Recipient.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "DONOR", "USER", "GUEST"] },
+        "name": { "type": "string" },
+        "bloodType": { "type": "string" },
+        "location": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "avatarUrl": { "type": "string" },
+        "joinDate": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Blocked", "Inactive"] },
+        "accentColor": { "type": "string" },
+        "fontSize": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["username", "role", "name"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A message sent between users.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "receiverName": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "receiverId", "text", "timestamp"]
+    },
+    "BloodStock": {
+      "title": "BloodStock",
+      "description": "Inventory of blood units at a hospital.",
+      "type": "object",
+      "properties": {
+        "bloodType": { "type": "string" },
+        "units": { "type": "integer" },
+        "maxCapacity": { "type": "integer" },
+        "hospitalName": { "type": "string" },
+        "city": { "type": "string" },
+        "contactNumber": { "type": "string" }
+      },
+      "required": ["bloodType", "units", "hospitalName"]
+    },
+    "DonationRequest": {
+      "title": "DonationRequest",
+      "description": "A request for blood donation or a donation offer.",
+      "type": "object",
+      "properties": {
+        "donorName": { "type": "string" },
+        "bloodType": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Completed", "Rejected"] },
+        "date": { "type": "string" },
+        "urgency": { "type": "string", "enum": ["Low", "Medium", "Critical"] },
+        "hospital": { "type": "string" },
+        "location": { "type": "string" },
+        "phone": { "type": "string" },
+        "type": { "type": "string", "enum": ["Donation", "Request"] },
+        "units": { "type": "integer" }
+      },
+      "required": ["bloodType", "status", "urgency", "type"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User feedback or support messages.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "reply": { "type": "string" }
+      },
+      "required": ["userId", "message", "date"]
+    },
+    "Hospital": {
+      "title": "Hospital",
+      "description": "A hospital registered in the system.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "city": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] }
+      },
+      "required": ["name", "city", "email"]
+    },
+    "EmergencyKey": {
+      "title": "EmergencyKey",
+      "description": "A special key for emergency blood access.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "type": { "type": "string", "enum": ["Gold", "Platinum"] },
+        "usesRemaining": { "type": "integer" },
+        "issuedDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Expired"] },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["code", "type", "status"]
+    },
+    "Campaign": {
+      "title": "Campaign",
+      "description": "A blood donation campaign or event.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "location": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "attendees": { "type": "integer" }
+      },
+      "required": ["title", "date", "location"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat messages between users."
+    },
+    "/stocks/{stockId}": {
+      "schema": "BloodStock",
+      "description": "Blood stock inventory."
+    },
+    "/requests/{requestId}": {
+      "schema": "DonationRequest",
+      "description": "Donation and blood requests."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "User feedback."
+    },
+    "/hospitals/{hospitalId}": {
+      "schema": "Hospital",
+      "description": "Registered hospitals."
+    },
+    "/keys/{keyId}": {
+      "schema": "EmergencyKey",
+      "description": "Emergency access keys."
+    },
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Blood donation campaigns."
+    }
+  }
+}
