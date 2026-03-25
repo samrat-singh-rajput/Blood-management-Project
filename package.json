@@ -4,22 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
-    "@types/nodemailer": "^7.0.11",
-    "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
     "lucide-react": "^0.554.0",
-    "nodemailer": "^8.0.2",
+    "@google/genai": "^1.30.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tsx": "^4.21.0",
-    "twilio": "^5.12.2"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
