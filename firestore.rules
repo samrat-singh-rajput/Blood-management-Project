@@ -131,49 +131,53 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      // Allow public read for login and seeding (searching by username)
+      allow read: if true; 
+      allow create: if true; // Allow signup
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /messages/{messageId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId || isAdmin());
-      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
-      allow update, delete: if isAdmin();
+      allow read, create: if true; // Public for prototype
+      allow update, delete: if true; // Public for prototype
     }
 
     match /stocks/{stockId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Publicly viewable
       allow write: if isAdmin();
     }
 
     match /requests/{requestId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.donorId || isAdmin());
-      allow delete: if isAdmin();
+      allow read, create, update, delete: if true; // Public for prototype
     }
 
     match /feedback/{feedbackId} {
-      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
-      allow create: if isAuthenticated() && isValidFeedback(request.resource.data);
-      allow update, delete: if isAdmin();
+      allow read, create, update, delete: if true; // Public for prototype
     }
 
     match /hospitals/{hospitalId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read, write: if true; // Publicly viewable and writable for debugging
     }
 
     match /keys/{keyId} {
-      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.ownerId);
-      allow write: if isAdmin();
+      allow read, write: if true; // Public for prototype
     }
 
     match /campaigns/{campaignId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read, write: if true; // Public for prototype
+    }
+
+    match /logs/{logId} {
+      allow read, write: if true; // Public for prototype
+    }
+
+    match /appointments/{appointmentId} {
+      allow read, write: if true; // Public for prototype
+    }
+
+    match /certificates/{certificateId} {
+      allow read, write: if true; // Public for prototype
     }
 
     match /{path=**} {

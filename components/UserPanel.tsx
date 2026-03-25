@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Droplet, Phone, MessageCircle, Activity, Users, Info, Send, Clock, CheckCircle2, MessageSquareText, ShieldCheck, ArrowLeft, PlusCircle, AlertCircle, Building2, User as UserIcon, Database } from 'lucide-react';
 import { User, Feedback, UserRole, DonationRequest, ChatMessage } from '../types';
 import { API } from '../services/api';
+import { realtime } from '../services/realTimeService';
 // Removed non-existent import 'findDonorsWithAI'
 import { Button } from './Button';
 
@@ -49,7 +50,26 @@ export const UserPanel: React.FC<UserPanelProps> = ({ user }) => {
     loadDonors();
     loadMyFeedbacks();
     loadRecentChats();
-  }, [user._id]);
+
+    const handleNewMsg = (msg: ChatMessage) => {
+      if (activeChatPartner && (msg.senderId === activeChatPartner._id || msg.receiverId === activeChatPartner._id)) {
+        setChatHistory(prev => [...prev, msg]);
+      }
+      loadRecentChats();
+    };
+
+    const handleFeedbackReply = (data: { feedbackId: string, reply: string }) => {
+      setUserFeedbacks(prev => prev.map(f => f._id === data.feedbackId ? { ...f, reply: data.reply } : f));
+    };
+
+    realtime.on('NEW_MESSAGE', handleNewMsg);
+    realtime.on('NEW_FEEDBACK_REPLY', handleFeedbackReply);
+
+    return () => {
+      realtime.off('NEW_MESSAGE', handleNewMsg);
+      realtime.off('NEW_FEEDBACK_REPLY', handleFeedbackReply);
+    };
+  }, [user._id, activeChatPartner]);
 
   useEffect(() => {
     if (activeChatPartner) {

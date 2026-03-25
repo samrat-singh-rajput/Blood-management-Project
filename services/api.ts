@@ -13,10 +13,13 @@ import {
   setDoc,
   getDoc,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  or,
+  and
 } from "firebase/firestore";
 import { User, UserRole, BloodStock, DonationRequest, Appointment, Feedback, SecurityLog, Hospital, ChatMessage, DonorCertificate, EmergencyKey, Campaign } from "../types";
 import { db, handleFirestoreError, OperationType } from "../firebase";
+import { realtime } from "./realTimeService";
 
 // This service now uses real Firebase Firestore.
 export const API = {
@@ -173,7 +176,9 @@ export const API = {
         ...msg,
         timestamp: new Date().toISOString()
       });
-      return { ...msg, _id: docRef.id };
+      const savedMsg = { ...msg, _id: docRef.id };
+      realtime.emit('NEW_MESSAGE', savedMsg);
+      return savedMsg;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, "messages");
       throw error;
@@ -182,13 +187,16 @@ export const API = {
 
   getChatHistory: async (u1: string, u2: string) => {
     try {
-      const q = query(collection(db, "messages"), orderBy("timestamp", "asc"));
-      const snapshot = await getDocs(q);
-      const all = snapshot.docs.map(d => ({ ...d.data(), _id: d.id } as ChatMessage));
-      return all.filter(m => 
-        (m.senderId === u1 && m.receiverId === u2) || 
-        (m.senderId === u2 && m.receiverId === u1)
+      const q = query(
+        collection(db, "messages"), 
+        or(
+          and(where("senderId", "==", u1), where("receiverId", "==", u2)),
+          and(where("senderId", "==", u2), where("receiverId", "==", u1))
+        )
       );
+      const snapshot = await getDocs(q);
+      const messages = snapshot.docs.map(d => ({ ...d.data(), _id: d.id } as ChatMessage));
+      return messages.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, "messages");
       throw error;
@@ -197,9 +205,13 @@ export const API = {
 
   getAllUserChats: async (uid: string) => {
     try {
-      const snapshot = await getDocs(collection(db, "messages"));
-      const all = snapshot.docs.map(d => ({ ...d.data(), _id: d.id } as ChatMessage));
-      return all.filter(m => m.senderId === uid || m.receiverId === uid);
+      const q = query(
+        collection(db, "messages"),
+        or(where("senderId", "==", uid), where("receiverId", "==", uid))
+      );
+      const snapshot = await getDocs(q);
+      const messages = snapshot.docs.map(d => ({ ...d.data(), _id: d.id } as ChatMessage));
+      return messages.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, "messages");
       throw error;
@@ -262,6 +274,8 @@ export const API = {
         usesRemaining: 1
       };
       const docRef = await addDoc(collection(db, "keys"), newKey);
+      const savedKey = { ...newKey, _id: docRef.id };
+      realtime.emit('NEW_EMERGENCY_KEY', { userId: uid, key: savedKey });
       return code;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, "keys");
@@ -286,7 +300,9 @@ export const API = {
         ...f,
         date: new Date().toISOString()
       });
-      return { ...f, _id: docRef.id };
+      const savedFeedback = { ...f, _id: docRef.id };
+      realtime.emit('NEW_FEEDBACK', savedFeedback);
+      return savedFeedback;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, "feedback");
       throw error;
@@ -297,6 +313,7 @@ export const API = {
     try {
       const docRef = doc(db, "feedback", id);
       await updateDoc(docRef, { reply: r });
+      realtime.emit('NEW_FEEDBACK_REPLY', { feedbackId: id, reply: r });
       return true;
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `feedback/${id}`);
